@@ -1,0 +1,30 @@
+{
+  "name": "safeagent-gateway-backend",
+  "version": "1.0.0",
+  "description": "SafeAgent Gateway — deterministic policy firewall for AI buyers",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "seed": "node scripts/seedDb.js",
+    "agent": "node scripts/buyerAgent.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^5.2.1",
+    "express-rate-limit": "^7.4.0",
+    "helmet": "^8.0.0",
+    "mongoose": "^8.5.1",
+    "nodemon": "^3.1.14",
+    "openai": "^7.5.0",
+    "razorpay": "^2.9.2",
+    "speakeasy": "^2.0.0",
+    "uuid": "^10.0.0"
+  }
+}
