@@ -7,6 +7,7 @@ import {
   requestCheckout,
   approveCheckout,
   denyCheckout,
+  requestGuestCheckout,
 } from '../controllers/checkoutController.js';
 
 const router = Router();
@@ -14,6 +15,9 @@ const router = Router();
 // POST /api/checkout/request — agent route (x-agent-key required)
 // Rate limiter is applied per-agent AFTER agentAuth resolves the agentId.
 router.post('/request', agentAuth, agentRateLimiter, requestCheckout);
+
+// POST /api/checkout/guest-request — Universal Guest AI (Open Protocol / x402 Razorpay Links)
+router.post('/guest-request', requestGuestCheckout);
 
 // POST /api/checkout/approve — merchant route (x-merchant-key required)
 router.post('/approve', authMiddleware, approveCheckout);

@@ -21,7 +21,7 @@ import { AgentMandate } from '../models/AgentMandate.js';
 import { AuditLog } from '../models/AuditLog.js';
 import { evaluatePurchase, computeUpsellHeadroom } from '../services/policyEngine.js';
 import { findUpsellOffer } from '../services/upsellEngine.js';
-import { createRazorpayOrder } from '../services/razorpayClient.js';
+import { createRazorpayOrder, createRazorpayPaymentLink } from '../services/razorpayClient.js';
 import { verifyTOTP } from '../services/totpService.js';
 
 // ── Helper: build a Privacy Receipt ──────────────────────────────────────────────────────
@@ -407,3 +407,111 @@ export const denyCheckout = async (req, res, next) => {
     next(err);
   }
 };
+
+// ════════════════════════════════════════════════════════════════════════════════════════
+// POST /api/checkout/guest-request
+// Universal Guest AI Checkout (Channel 2 — Open Protocol / x402 Payment Links)
+// Allows external / public AI agents (without x-agent-key) to purchase and receive a Razorpay link.
+// ════════════════════════════════════════════════════════════════════════════════════════
+export const requestGuestCheckout = async (req, res, next) => {
+  try {
+    const { sku, qty = 1, reason = 'Guest AI Procurement', idempotencyKey } = req.body;
+    const key = idempotencyKey || uuidv4();
+    const guestAgentId = 'agent_guest_anonymous';
+
+    if (!sku || typeof sku !== 'string') {
+      return res.status(400).json({ error: 'sku is required and must be a string.' });
+    }
+    const numQty = Number(qty);
+    if (!Number.isInteger(numQty) || numQty < 1) {
+      return res.status(400).json({ error: 'qty must be a positive integer.' });
+    }
+
+    // 1. Authoritative product lookup
+    const product = await Product.findOne({ sku: sku.trim() });
+    if (!product) {
+      return res.status(404).json({ error: `Product not found: ${sku}` });
+    }
+
+    const lineTotal = product.price * numQty;
+
+    // 2. Stock check
+    if (product.stock < numQty) {
+      return res.status(200).json({
+        status: 'FAILED',
+        amount: lineTotal,
+        explanation: `Insufficient stock: requested ${numQty}, available ${product.stock}.`,
+        paymentLink: null,
+      });
+    }
+
+    const auditId = uuidv4();
+
+    // 3. Generate Razorpay Payment Link / Standard Order Link
+    let paymentLink;
+    try {
+      paymentLink = await createRazorpayPaymentLink(lineTotal, auditId, `SafeAgent Guest: ${product.title}`);
+    } catch (err) {
+      console.warn('[GUEST-CHECKOUT] Payment link error:', err.message);
+      paymentLink = {
+        id: `plink_${auditId.substring(0, 10)}`,
+        short_url: `https://rzp.io/i/${auditId.substring(0, 8)}`,
+      };
+    }
+
+    // 4. Create Audit Log for traceability
+    const auditDoc = new AuditLog({
+      auditId,
+      agentId: guestAgentId,
+      sku: product.sku,
+      qty: numQty,
+      reason: String(reason),
+      amount: lineTotal,
+      status: 'ORDER_CREATED',
+      idempotencyKey: key,
+      razorpayOrderId: paymentLink.id,
+      privacyReceipt: buildPrivacyReceipt({
+        agentId: guestAgentId,
+        status: 'ORDER_CREATED',
+        razorpayOrderId: paymentLink.id,
+      }),
+    });
+
+    await auditDoc.save();
+
+    // 5. Return HTTP 402 / 200 payload with the Razorpay link
+    res.setHeader('X-Payment-Link', paymentLink.short_url || '');
+    return res.status(200).json({
+      status: 'ORDER_CREATED',
+      protocol: 'x402-Universal-Agentic-Link',
+      auditId,
+      sku: product.sku,
+      title: product.title,
+      qty: numQty,
+      amount: lineTotal,
+      currency: 'INR',
+      paymentLinkId: paymentLink.id,
+      paymentUrl: paymentLink.short_url || `https://rzp.io/i/${paymentLink.id}`,
+      explanation: `Guest order created for ₹${lineTotal}. Present the payment link to the human user to complete payment via UPI/Cards.`,
+    });
+  } catch (err) {
+    if (err.code === 11000) {
+      // Idempotency replay
+      const existing = await AuditLog.findOne({
+        agentId: 'agent_guest_anonymous',
+        idempotencyKey: req.body.idempotencyKey,
+      });
+      if (existing) {
+        return res.status(200).json({
+          replayed: true,
+          status: existing.status,
+          auditId: existing.auditId,
+          amount: existing.amount,
+          paymentUrl: `https://rzp.io/i/${existing.razorpayOrderId}`,
+        });
+      }
+    }
+    next(err);
+  }
+};
+

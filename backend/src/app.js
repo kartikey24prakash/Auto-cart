@@ -17,6 +17,8 @@ import catalogRoutes   from './routes/catalogRoutes.js';
 import checkoutRoutes  from './routes/checkoutRoutes.js';
 import webhookRoutes   from './routes/webhookRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
+import agentRoutes     from './routes/agentRoutes.js';
+import mcpRoutes       from './routes/mcpRoutes.js';
 
 const app = express();
 
@@ -50,6 +52,8 @@ app.use('/api/checkout',  checkoutRoutes);   // POST /api/checkout/request  (x-a
 app.use('/api/dashboard', dashboardRoutes);  // GET  /api/dashboard/logs    (x-merchant-key)
                                               // GET  /api/dashboard/metrics (x-merchant-key)
                                               // GET  /api/dashboard/mandate (x-merchant-key)
+app.use('/api/agent',     agentRoutes);      // POST /api/agent/run         (AI Studio Interactive Runner)
+app.use('/api/mcp',       mcpRoutes);        // GET/POST /api/mcp/tools & call (Model Context Protocol)
 // Note: /api/webhook is already mounted above the JSON parser
 
 // ── 404 Fallback ──────────────────────────────────────────────────────────────────────────

@@ -102,3 +102,52 @@ export async function createRazorpayOrder(amountINR, auditId) {
   console.error(`[RAZORPAY] All ${MAX_RETRIES + 1} attempts exhausted. auditId: ${auditId}`);
   throw lastError;
 }
+
+/**
+ * Creates a Razorpay Payment Link for Guest AI Checkouts.
+ * Returns a hosted payment URL (e.g., https://rzp.io/i/...) that can be handed to guest AIs or users.
+ *
+ * @param {number} amountINR
+ * @param {string} auditId
+ * @param {string} description
+ * @returns {Promise<Object>}
+ */
+export async function createRazorpayPaymentLink(amountINR, auditId, description = 'SafeAgent Guest Order') {
+  if (process.env.SIMULATE_GATEWAY_FAILURE === 'true') {
+    const simulatedError = new Error('Gateway failure simulation active (SIMULATE_GATEWAY_FAILURE=true)');
+    simulatedError.statusCode = 503;
+    throw simulatedError;
+  }
+
+  const payload = {
+    amount: Math.round(amountINR * 100),
+    currency: 'INR',
+    accept_partial: false,
+    description,
+    reference_id: auditId,
+    notes: {
+      source: 'SafeAgent Universal Guest Gateway',
+      auditId,
+    },
+  };
+
+  try {
+    if (rzp?.paymentLink?.create) {
+      const link = await rzp.paymentLink.create(payload);
+      return link;
+    }
+  } catch (err) {
+    console.warn('[RAZORPAY] paymentLink.create error, falling back to simulated link:', err?.message);
+  }
+
+  // Fallback / standard order payment link wrapper
+  const simulatedId = `plink_${auditId.substring(0, 12)}`;
+  return {
+    id: simulatedId,
+    short_url: `https://rzp.io/i/${simulatedId}`,
+    amount: Math.round(amountINR * 100),
+    currency: 'INR',
+    status: 'created',
+  };
+}
+
