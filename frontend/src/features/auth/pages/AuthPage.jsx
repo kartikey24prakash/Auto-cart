@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ArrowRight, Store, ShoppingBag } from 'lucide-react';
 import { useSession } from '@/shared/state/SessionContext';
+import apiClient from '@/shared/services/apiClient';
 
 function GoogleIcon() {
   return (
@@ -28,6 +29,8 @@ const proof = [
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [role, setRole] = useState('buyer'); // 'buyer' or 'merchant'
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -42,15 +45,49 @@ export default function AuthPage() {
     }
   }, [searchParams]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const email = e.target.email.value || 'demo@autocart.com';
+    setError('');
+    setLoading(true);
     
-    // Log the user in via context
-    login(role, email);
+    const email = e.target.email.value;
+    const password = e.target.password.value;
     
-    // Route to correct dashboard
-    navigate(role === 'buyer' ? '/buyer' : '/merchant');
+    if (!isLogin) {
+      const confirm = e.target.confirm.value;
+      if (password !== confirm) {
+        setError('Passwords do not match');
+        setLoading(false);
+        return;
+      }
+    }
+
+    try {
+      const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
+      const response = await apiClient.post(endpoint, {
+        email,
+        password,
+        role: role.toUpperCase() // BUYER or MERCHANT
+      });
+      
+      const { token, user } = response.data;
+      
+      // We still use lowercase role for frontend logic
+      const sessionUserData = {
+        userId: user.userId,
+        email: user.email,
+        role: user.role.toLowerCase(),
+        merchantKey: user.merchantKey,
+        buyerKey: user.buyerKey
+      };
+      
+      login(sessionUserData, token);
+      navigate(role === 'buyer' ? '/buyer' : '/merchant');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Authentication failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -93,14 +130,14 @@ export default function AuthPage() {
             <div className="flex bg-muted p-1 rounded-lg">
               <button
                 type="button"
-                onClick={() => setRole('buyer')}
+                onClick={() => { setRole('buyer'); setError(''); }}
                 className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-xs font-medium rounded-md transition-colors ${role === 'buyer' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 <ShoppingBag className="w-3.5 h-3.5" /> Buyer
               </button>
               <button
                 type="button"
-                onClick={() => setRole('merchant')}
+                onClick={() => { setRole('merchant'); setError(''); }}
                 className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-xs font-medium rounded-md transition-colors ${role === 'merchant' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 <Store className="w-3.5 h-3.5" /> Merchant
@@ -118,7 +155,7 @@ export default function AuthPage() {
               </span>
             </div>
 
-            <Button variant="outline" className="w-full justify-center gap-2">
+            <Button variant="outline" className="w-full justify-center gap-2" type="button">
               <GoogleIcon />
               Continue with Google
             </Button>
@@ -128,6 +165,12 @@ export default function AuthPage() {
               <span className="text-muted-foreground text-[11px] uppercase">or</span>
               <span className="bg-border h-px flex-1" />
             </div>
+
+            {error && (
+              <div className="text-sm font-medium text-destructive bg-destructive/10 p-2 rounded-md border border-destructive/20">
+                {error}
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-3">
               <div className="flex flex-col gap-1.5">
@@ -147,14 +190,14 @@ export default function AuthPage() {
                   <Input id="confirm" type="password" placeholder="••••••••" required />
                 </div>
               )}
-              <Button type="submit" className="w-full mt-2 bg-blue-600 hover:bg-blue-500 text-white">
-                {isLogin ? 'Sign in' : 'Create Account'} <ArrowRight className="w-4 h-4 ml-2" />
+              <Button type="submit" disabled={loading} className="w-full mt-2 bg-blue-600 hover:bg-blue-500 text-white">
+                {loading ? 'Processing...' : (isLogin ? 'Sign in' : 'Create Account')} <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </form>
 
             <p className="text-muted-foreground text-center text-xs">
               {isLogin ? 'No account? ' : 'Already have an account? '}
-              <button onClick={() => setIsLogin(!isLogin)} className="text-blue-400 font-medium hover:underline">
+              <button type="button" onClick={() => { setIsLogin(!isLogin); setError(''); }} className="text-blue-400 font-medium hover:underline">
                 {isLogin ? 'Start free trial' : 'Sign in instead'}
               </button>
             </p>

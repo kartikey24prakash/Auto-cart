@@ -1,12 +1,12 @@
 // src/routes/dashboardRoutes.js
 import { Router } from 'express';
-import { authMiddleware } from '../middleware/authMiddleware.js';
+import { jwtMiddleware } from '../middleware/jwtMiddleware.js';
 import { getLogs, getMetrics, getMandate } from '../controllers/dashboardController.js';
 
 const router = Router();
 
-// All dashboard routes require x-merchant-key
-router.use(authMiddleware);
+// All dashboard routes require JWT token
+router.use(jwtMiddleware);
 
 // GET /api/dashboard/logs    — Paginated audit stream
 router.get('/logs', getLogs);

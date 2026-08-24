@@ -3,10 +3,14 @@ import { verifyIntent, commitTransaction, approveTransaction, denyTransaction } 
 
 const router = express.Router();
 
-// The central Trust Engine firewall endpoints
+import { jwtMiddleware } from '../middleware/jwtMiddleware.js';
+
+// The central Trust Engine firewall endpoints (SDK access)
 router.post('/verify-intent', verifyIntent);
 router.post('/commit', commitTransaction);
-router.post('/approve', approveTransaction);
-router.post('/deny', denyTransaction);
+
+// Dashboard routes (require JWT)
+router.post('/approve', jwtMiddleware, approveTransaction);
+router.post('/deny', jwtMiddleware, denyTransaction);
 
 export default router;

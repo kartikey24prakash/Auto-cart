@@ -16,6 +16,7 @@ import { connectDB } from './config/db.js';
 import webhookRoutes   from './routes/webhookRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import engineRoutes    from './routes/engineRoutes.js';
+import authRoutes      from './routes/authRoutes.js';
 
 const app = express();
 
@@ -42,9 +43,10 @@ app.get('/health', (_req, res) => {
 });
 
 // ── API Routes ────────────────────────────────────────────────────────────────────────────
-app.use('/api/dashboard', dashboardRoutes);  // GET  /api/dashboard/logs    (x-merchant-key)
-                                              // GET  /api/dashboard/metrics (x-merchant-key)
-                                              // GET  /api/dashboard/mandate (x-merchant-key)
+app.use('/api/auth',      authRoutes);
+app.use('/api/dashboard', dashboardRoutes);  // GET  /api/dashboard/logs    (jwt)
+                                              // GET  /api/dashboard/metrics (jwt)
+                                              // GET  /api/dashboard/mandate (jwt)
 app.use('/api/engine',    engineRoutes);     // POST /api/engine/verify-intent & /commit
 // Note: /api/webhook is already mounted above the JSON parser
 

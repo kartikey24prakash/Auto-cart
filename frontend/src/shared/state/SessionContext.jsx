@@ -12,18 +12,18 @@ export function SessionProvider({ children }) {
 
   useEffect(() => {
     if (user) {
-      if (user.role === 'merchant') {
-        setApiCredentials('merchant', 'merchant_demo_secret');
+      if (user.role.toLowerCase() === 'merchant') {
+        setApiCredentials('merchant', user.merchantKey, user.token);
       } else {
-        setApiCredentials('buyer', 'agentkey_demo_alpha');
+        setApiCredentials('buyer', user.buyerKey, user.token);
       }
     } else {
-      setApiCredentials(null, null);
+      setApiCredentials(null, null, null);
     }
   }, [user]);
 
-  const login = (role, email) => {
-    const sessionUser = { role, email };
+  const login = (userData, token) => {
+    const sessionUser = { ...userData, token };
     setUser(sessionUser);
     localStorage.setItem('autocart_session', JSON.stringify(sessionUser));
   };
