@@ -6,12 +6,12 @@ export const approvalApi = {
     if (totpCode) {
       payload.totpCode = totpCode;
     }
-    const response = await apiClient.post('/api/checkout/approve', payload);
+    const response = await apiClient.post('/api/engine/approve', payload);
     return response.data;
   },
   
   deny: async (auditId) => {
-    const response = await apiClient.post('/api/checkout/deny', { auditId });
+    const response = await apiClient.post('/api/engine/deny', { auditId });
     return response.data;
   }
 };

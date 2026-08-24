@@ -4,16 +4,21 @@ const apiClient = axios.create({
   baseURL: 'http://localhost:5000',
 });
 
-let currentMerchantKey = null;
+let currentRole = null;
+let currentKey = null;
 
-// Synchronously set by the SessionContext
-export function setApiClientMerchantKey(key) {
-  currentMerchantKey = key;
+export function setApiCredentials(role, key) {
+  currentRole = role;
+  currentKey = key;
 }
 
 apiClient.interceptors.request.use((config) => {
-  if (currentMerchantKey) {
-    config.headers['x-merchant-key'] = currentMerchantKey;
+  if (currentKey) {
+    if (currentRole === 'merchant') {
+      config.headers['x-merchant-key'] = currentKey;
+    } else if (currentRole === 'buyer') {
+      config.headers['x-buyer-key'] = currentKey;
+    }
   }
   return config;
 });

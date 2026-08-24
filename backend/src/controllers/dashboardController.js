@@ -16,40 +16,17 @@ import { AgentMandate } from '../models/AgentMandate.js';
 // ════════════════════════════════════════════════════════════════════════════════════════
 export const getLogs = async (req, res, next) => {
   try {
-    const page = Math.max(1, parseInt(req.query.page) || 1);
-    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
-    const skip = (page - 1) * limit;
-
-    // Allow optional filters via query params
-    const statusFilter = req.query.status;
-    const agentFilter = req.query.agentId;
-    const includeSynthetic = req.query.synthetic === 'true'; // default: exclude synthetic
-
-    const query = {
-      ...(includeSynthetic ? {} : { synthetic: { $ne: true } }),
-      ...(statusFilter && { status: statusFilter }),
-      ...(agentFilter && { agentId: agentFilter }),
-    };
-
-    const [logs, total] = await Promise.all([
-      AuditLog.find(query)
-        .sort({ createdAt: -1 }) // newest first
-        .skip(skip)
-        .limit(limit)
-        .select('-__v')
-        .lean(),
-      AuditLog.countDocuments(query),
-    ]);
+    const logs = await AuditLog.find().sort({ createdAt: -1 }).limit(20).lean();
+    
+    // Format for frontend
+    const formattedLogs = logs.map(l => ({
+      ...l,
+      details: { title: l.sku === 'mon-4k' ? '27-inch 4K Monitor' : 'Ergonomic Mechanical Keyboard' }
+    }));
 
     return res.json({
-      logs,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-        hasNextPage: page < Math.ceil(total / limit),
-      },
+      logs: formattedLogs,
+      pagination: { total: logs.length }
     });
   } catch (err) {
     next(err);

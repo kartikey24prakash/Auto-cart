@@ -1,0 +1,1 @@
+{ "name": "agentic-commerce-monorepo", "private": true, "workspaces": ["frontend", "backend", "packages/*"] }

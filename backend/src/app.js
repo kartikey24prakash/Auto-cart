@@ -13,12 +13,9 @@ import cors from 'cors';
 import helmet from 'helmet';
 
 import { connectDB } from './config/db.js';
-import catalogRoutes   from './routes/catalogRoutes.js';
-import checkoutRoutes  from './routes/checkoutRoutes.js';
 import webhookRoutes   from './routes/webhookRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
-import agentRoutes     from './routes/agentRoutes.js';
-import mcpRoutes       from './routes/mcpRoutes.js';
+import engineRoutes    from './routes/engineRoutes.js';
 
 const app = express();
 
@@ -45,15 +42,10 @@ app.get('/health', (_req, res) => {
 });
 
 // ── API Routes ────────────────────────────────────────────────────────────────────────────
-app.use('/api/catalog',   catalogRoutes);    // GET  /api/catalog           (x-agent-key)
-app.use('/api/checkout',  checkoutRoutes);   // POST /api/checkout/request  (x-agent-key)
-                                              // POST /api/checkout/approve  (x-merchant-key)
-                                              // POST /api/checkout/deny     (x-merchant-key)
 app.use('/api/dashboard', dashboardRoutes);  // GET  /api/dashboard/logs    (x-merchant-key)
                                               // GET  /api/dashboard/metrics (x-merchant-key)
                                               // GET  /api/dashboard/mandate (x-merchant-key)
-app.use('/api/agent',     agentRoutes);      // POST /api/agent/run         (AI Studio Interactive Runner)
-app.use('/api/mcp',       mcpRoutes);        // GET/POST /api/mcp/tools & call (Model Context Protocol)
+app.use('/api/engine',    engineRoutes);     // POST /api/engine/verify-intent & /commit
 // Note: /api/webhook is already mounted above the JSON parser
 
 // ── 404 Fallback ──────────────────────────────────────────────────────────────────────────
