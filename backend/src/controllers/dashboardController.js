@@ -20,7 +20,16 @@ const getQueryFilter = (req) => {
 export const getLogs = async (req, res, next) => {
   try {
     const filter = getQueryFilter(req);
-    const logs = await AuditLog.find(filter).sort({ createdAt: -1 }).limit(20).lean();
+    
+    // Phase 5: Pagination support
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 20;
+    const skip = (page - 1) * limit;
+
+    const [logs, total] = await Promise.all([
+      AuditLog.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      AuditLog.countDocuments(filter)
+    ]);
     
     // Format for frontend
     const formattedLogs = logs.map(l => ({
@@ -30,7 +39,12 @@ export const getLogs = async (req, res, next) => {
 
     return res.json({
       logs: formattedLogs,
-      pagination: { total: logs.length }
+      pagination: { 
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
     });
   } catch (err) {
     next(err);

@@ -1,0 +1,9 @@
+{
+  "name": "@autocart/ai-tools",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "description": "LangChain and OpenAI compatible tools for AI agents to buy products securely.",
+  "dependencies": {}
+}

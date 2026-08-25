@@ -56,6 +56,9 @@ const auditLogSchema = new mongoose.Schema(
 
 // Idempotency guard per buyer
 auditLogSchema.index({ buyerId: 1, idempotencyKey: 1 }, { unique: true });
+// Dashboard Scalability Indexes (Phase 5)
+auditLogSchema.index({ merchantId: 1, createdAt: -1 });
+auditLogSchema.index({ buyerId: 1, createdAt: -1 });
 
 export const AuditLog = mongoose.model('AuditLog', auditLogSchema);
 export { STATUS_VALUES };

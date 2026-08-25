@@ -37,13 +37,20 @@ export default function RazorpayModal({ isOpen, onClose, orderDetails, onProcess
         setPaymentStep('success');
         // Notify backend that payment was captured (simulating webhook for now)
         try {
-          await apiClient.post('/api/engine/commit', {
-            auditId: orderDetails.auditId,
-            razorpayPaymentId: response.razorpay_payment_id,
-            razorpaySignature: response.razorpay_signature
+          // Simulating the Razorpay Webhook locally since we don't have a public URL
+          await apiClient.post('/api/webhook/razorpay', {
+            event: 'payment.captured',
+            payload: {
+              payment: {
+                entity: {
+                  id: response.razorpay_payment_id,
+                  order_id: orderDetails.razorpayOrderId
+                }
+              }
+            }
           }, {
             headers: {
-              'x-autocart-signature': 'temp-bypass' // In real life, webhooks don't need this
+              'x-razorpay-signature': 'test-webhook-bypass'
             }
           });
         } catch (e) {

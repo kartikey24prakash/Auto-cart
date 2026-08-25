@@ -22,39 +22,63 @@ const createRazorpayOrder = async (merchant, amount, receiptId) => {
     key_id: merchant.merchantConfig.razorpayKeyId,
     key_secret: merchant.merchantConfig.razorpayKeySecret
   });
-  return await rzp.orders.create({
-    amount: amount * 100, // in paise
+
+  const amountPaise = Math.round(amount * 100);
+  const platformFeePaise = Math.round(amountPaise * 0.02); // 2% AutoCart Fee
+
+  const orderPayload = {
+    amount: amountPaise,
     currency: 'INR',
     receipt: receiptId
-  });
+  };
+
+  // Phase 2: Razorpay Route (Money Routing)
+  if (merchant.merchantConfig.razorpayLinkedAccountId) {
+    orderPayload.transfers = [
+      {
+        account: merchant.merchantConfig.razorpayLinkedAccountId,
+        amount: amountPaise - platformFeePaise,
+        currency: 'INR',
+        notes: { auditId: receiptId },
+        on_hold: false
+      }
+    ];
+  }
+
+  return await rzp.orders.create(orderPayload);
 };
 
-export const verifyIntent = async (req, res) => {
-  try {
-    const signature = req.headers['x-autocart-signature'];
-    const { merchantKey, buyerKey, sku, qty, lineTotal, idempotencyKey } = req.body;
-
-    if (!signature) {
-      return res.status(401).json({ error: 'Missing x-autocart-signature header' });
-    }
-
-    // 1. Fetch Merchant
-    const merchant = await User.findOne({ 'merchantConfig.merchantKey': merchantKey, role: 'MERCHANT' });
-    if (!merchant) return res.status(404).json({ error: 'Invalid merchantKey' });
-
-    // 2. Verify Cryptographic Signature
-    if (!verifySignature(req.body, signature, merchant.merchantConfig.merchantSecret)) {
-      return res.status(403).json({ error: 'Invalid payload signature' });
-    }
-
-    // 3. Authenticate Buyer
-    const buyer = await User.findOne({ 'buyerConfig.buyerKey': buyerKey, role: 'BUYER' });
-    if (!buyer) return res.status(401).json({ error: 'Invalid x-buyer-key credentials' });
-
-    // 3.5. Enforce Fulfillment Readiness (Shipping Address)
-    if (!buyer.buyerConfig.shippingProfiles || buyer.buyerConfig.shippingProfiles.length === 0) {
-      return res.status(400).json({ error: 'BLOCKED: No shipping address configured on Buyer account.' });
-    }
+  export const verifyIntent = async (req, res) => {
+    try {
+      const signature = req.headers['x-autocart-signature'];
+      const { merchantKey, buyerKey, sku, qty, lineTotal, idempotencyKey, maxAuthorizedAmount } = req.body;
+  
+      if (!signature) {
+        return res.status(401).json({ error: 'Missing x-autocart-signature header' });
+      }
+  
+      // AI Safety Check: Price Gouging Protection
+      if (maxAuthorizedAmount !== undefined && lineTotal > maxAuthorizedAmount) {
+        return res.status(403).json({ error: 'BLOCKED: Merchant price exceeds AI maxAuthorizedAmount.' });
+      }
+  
+      // 1. Fetch Merchant
+      const merchant = await User.findOne({ 'merchantConfig.merchantKey': merchantKey, role: 'MERCHANT' });
+      if (!merchant) return res.status(404).json({ error: 'Invalid merchantKey' });
+  
+      // 2. Verify Cryptographic Signature
+      if (!verifySignature(req.body, signature, merchant.merchantConfig.merchantSecret)) {
+        return res.status(403).json({ error: 'Invalid payload signature' });
+      }
+  
+      // 3. Authenticate Buyer
+      const buyer = await User.findOne({ 'buyerConfig.buyerKey': buyerKey, role: 'BUYER' });
+      if (!buyer) return res.status(401).json({ error: 'Invalid x-buyer-key credentials' });
+  
+      // 3.5. Enforce Fulfillment Readiness (Shipping Address)
+      if (!buyer.buyerConfig.shippingProfiles || buyer.buyerConfig.shippingProfiles.length === 0) {
+        return res.status(400).json({ error: 'BLOCKED: No shipping address configured on Buyer account.' });
+      }
     const defaultShipping = buyer.buyerConfig.shippingProfiles[0];
 
     // 3.8. Evaluate Timezone Reset
@@ -117,43 +141,7 @@ export const verifyIntent = async (req, res) => {
   }
 };
 
-export const commitTransaction = async (req, res) => {
-  try {
-    const signature = req.headers['x-autocart-signature'];
-    const { auditId, razorpayPaymentId, razorpaySignature } = req.body;
 
-    const log = await AuditLog.findOne({ auditId });
-    if (!log) return res.status(404).json({ error: 'Audit record not found' });
-
-    const merchant = await User.findOne({ userId: log.merchantId });
-    // Localhost Demo Bypass: Since we don't have public webhook URLs, we allow the frontend to simulate it.
-    // In production, we remove temp-bypass and Razorpay's cryptographically signed webhook hits this endpoint.
-    if (signature !== 'temp-bypass' && !verifySignature(req.body, signature, merchant.merchantConfig.merchantSecret)) {
-      return res.status(403).json({ error: 'Invalid payload signature' });
-    }
-
-    // Optional: We can verify Razorpay signature here if sent from frontend, 
-    // but typically webhook handles final confirmation. We will assume the frontend 
-    // sends proof of payment here, or we wait for webhook. 
-    // For now, let's just mark it PAYMENT_CAPTURED based on the SDK call.
-    log.status = 'PAYMENT_CAPTURED';
-    if (razorpayPaymentId) log.razorpayPaymentId = razorpayPaymentId;
-    log.privacyReceipt = {
-      timestamp: new Date().toISOString(),
-      merchantName: merchant.email,
-      total: log.amount,
-      gateway: 'Razorpay Test'
-    };
-    await log.save();
-    
-    await User.updateOne({ userId: log.buyerId, role: 'BUYER' }, { $inc: { 'buyerConfig.spentToday': log.amount } });
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error('[Trust Engine] Commit Error:', error);
-    res.status(500).json({ error: 'Commit failed' });
-  }
-};
 
 export const approveTransaction = async (req, res) => {
   try {

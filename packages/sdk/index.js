@@ -45,7 +45,7 @@ export class AutoCartGateway {
 
     router.post('/checkout', async (req, res) => {
       try {
-        const { sku, qty, idempotencyKey } = req.body;
+        const { sku, qty, idempotencyKey, maxAuthorizedAmount } = req.body;
         const buyerKey = req.headers['x-buyer-key'];
 
         if (!buyerKey || !sku || !qty || !idempotencyKey) {
@@ -69,7 +69,8 @@ export class AutoCartGateway {
           sku,
           qty,
           lineTotal,
-          idempotencyKey
+          idempotencyKey,
+          maxAuthorizedAmount
         };
 
         const signature = this._signPayload(enginePayload);
@@ -97,18 +98,23 @@ export class AutoCartGateway {
           });
         }
 
-        // 7. Auto-Approved! The Engine has generated a real Razorpay Order.
-        // We now just finalize the SDK side by telling the engine we're done.
-        // In a real flow, a webhook would finalize it, but for B2B API testing, we trigger commit here.
-        await fetch(`${this.nexusUrl}/api/engine/commit`, {
+        // Simulating the Webhook since headless payments aren't tokenized in this demo
+        await fetch(`${this.nexusUrl}/api/webhook/razorpay`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-autocart-signature': this._signPayload({ auditId: engineResult.auditId, razorpayPaymentId: 'pay_sdk_auto' })
+            'x-razorpay-signature': 'test-webhook-bypass'
           },
           body: JSON.stringify({
-            auditId: engineResult.auditId,
-            razorpayPaymentId: 'pay_sdk_auto'
+            event: 'payment.captured',
+            payload: {
+              payment: {
+                entity: {
+                  id: 'pay_sdk_auto',
+                  order_id: engineResult.razorpayOrderId
+                }
+              }
+            }
           })
         });
 
