@@ -1,7 +1,7 @@
 // src/routes/dashboardRoutes.js
 import { Router } from 'express';
 import { jwtMiddleware } from '../middleware/jwtMiddleware.js';
-import { getLogs, getMetrics, getMandate } from '../controllers/dashboardController.js';
+import { getLogs, getMetrics, getMandate, updateMandate, getShipping, updateShipping } from '../controllers/dashboardController.js';
 
 const router = Router();
 
@@ -16,5 +16,12 @@ router.get('/metrics', getMetrics);
 
 // GET /api/dashboard/mandate — Current mandate + spend meters
 router.get('/mandate', getMandate);
+
+// PUT /api/dashboard/mandate — Update buyer daily budget
+router.put('/mandate', updateMandate);
+
+// GET & PUT /api/dashboard/shipping — Manage buyer shipping profiles
+router.get('/shipping', getShipping);
+router.put('/shipping', updateShipping);
 
 export default router;

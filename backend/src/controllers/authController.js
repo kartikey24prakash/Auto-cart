@@ -37,7 +37,7 @@ export const register = async (req, res) => {
     } else {
       buyerConfig = {
         buyerKey: `buy_${uuidv4().replace(/-/g, '')}`,
-        dailyBudgetLimit: 5000,
+        dailyBudgetLimit: 50000,
         spentToday: 0
       };
     }

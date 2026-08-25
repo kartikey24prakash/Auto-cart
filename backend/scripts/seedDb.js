@@ -5,20 +5,22 @@ import { User } from '../src/models/User.js';
 
 async function seed() {
   try {
-    await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/autocart');
+    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/autocart');
     console.log('Connected to DB');
 
     const passwordHash = await bcrypt.hash('password123', 10);
 
     // Upsert Dummy Merchant (update if exists, insert if it doesn't)
     const merchant = await User.findOneAndUpdate(
-      { email: 'merchant@test.com' },
+      { email: 'merchant@autocart.com' },
       {
         passwordHash,
         role: 'MERCHANT',
         merchantConfig: {
           merchantKey: 'merch_test_123',
           merchantSecret: 'super_secret_key_999',
+          razorpayKeyId: process.env.RAZORPAY_KEY_ID || '',
+          razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET || '',
           firewallRules: { autoApproveUnder: 500, require2FAOver: 5000 }
         }
       },
@@ -27,15 +29,25 @@ async function seed() {
 
     // Upsert Dummy Buyer
     const buyer = await User.findOneAndUpdate(
-      { email: 'buyer@test.com' },
+      { email: 'buyer@autocart.com' },
       {
         passwordHash,
         role: 'BUYER',
         buyerConfig: {
           buyerKey: 'agentkey_demo_alpha',
-          dailyBudgetLimit: 100000,
-          spentToday: 0
-        }
+          dailyBudgetLimit: 50000,
+          spentToday: 0,
+          shippingProfiles: [
+            {
+              id: 'ship_01',
+              addressLine1: '123 Tech Park',
+              city: 'Bangalore',
+              state: 'Karnataka',
+              postalCode: '560001',
+              country: 'India'
+            }
+          ]
+        },
       },
       { new: true, upsert: true }
     );

@@ -21,9 +21,14 @@ export default function TOTPModal({ isOpen, auditId, onClose, onSuccess }) {
     setError(null);
 
     try {
-      await approvalApi.approve(auditId, totpCode);
+      const res = await approvalApi.approve(auditId, totpCode);
       setTotpCode('');
-      onSuccess();
+      onSuccess({
+        auditId: auditId,
+        razorpayOrderId: res.razorpayOrderId,
+        amount: res.amount,
+        keyId: res.keyId
+      });
     } catch (err) {
       setError(err.response?.data?.error || 'Validation failed. Please try again.');
       setTotpCode('');

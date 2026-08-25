@@ -1,19 +1,50 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Bot, Zap, ShieldCheck, TrendingUp } from 'lucide-react';
-
-const stats = [
-  { label: 'AI Purchases Today', value: '3', icon: Bot, colorClass: 'text-blue-400 bg-blue-500/10' },
-  { label: 'Budget Used', value: '₹6,400', icon: TrendingUp, colorClass: 'text-emerald-400 bg-emerald-500/10' },
-  { label: 'Auto-Approved', value: '2', icon: Zap, colorClass: 'text-yellow-400 bg-yellow-500/10' },
-  { label: 'Gated (Pending)', value: '1', icon: ShieldCheck, colorClass: 'text-orange-400 bg-orange-500/10' },
-];
+import { useSession } from '@/shared/state/SessionContext';
+import apiClient from '@/shared/services/apiClient';
 
 export default function BuyerCommandCenter() {
-  const [query, setQuery] = React.useState('');
-  const [messages, setMessages] = React.useState([
+  const { user } = useSession();
+  const [query, setQuery] = useState('');
+  const [messages, setMessages] = useState([
     { from: 'system', text: '🤖 AutoCart Scout is online. Type a request to begin.' }
   ]);
+  
+  // Real stats state
+  const [stats, setStats] = useState({
+    totalPurchases: 0,
+    budgetUsed: 0,
+    autoApproved: 0,
+    gated: 0
+  });
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const [mandateRes, logsRes] = await Promise.all([
+          apiClient.get('/api/dashboard/mandate'),
+          apiClient.get('/api/dashboard/logs')
+        ]);
+        
+        const mandate = mandateRes.data.mandates?.[0] || { spentToday: 0 };
+        const logs = logsRes.data.logs || [];
+        
+        const autoApproved = logs.filter(l => l.status === 'ORDER_CREATED' || l.status === 'ORDER_PENDING_CONFIRM').length;
+        const gated = logs.filter(l => l.status === 'GATED_1_CLICK' || l.status === 'GATED_2FA').length;
+        
+        setStats({
+          totalPurchases: logs.length,
+          budgetUsed: mandate.spentToday,
+          autoApproved,
+          gated
+        });
+      } catch (err) {
+        console.error('Failed to fetch buyer stats:', err);
+      }
+    };
+    fetchStats();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -25,11 +56,10 @@ export default function BuyerCommandCenter() {
       { from: 'system', text: `🔍 Scanning merchant catalog for: "${query}"...` }
     ]);
     
-    // Parse intent (demo hack: look for keywords)
-    let sku = 'kb-01'; // Default keyboard
+    let sku = 'kb-01'; 
     let qty = 1;
     if (query.toLowerCase().includes('monitor') || query.toLowerCase().includes('laptop')) {
-      sku = 'mon-4k'; // The expensive item that trips 2FA
+      sku = 'mon-4k';
     }
     
     setQuery('');
@@ -39,9 +69,11 @@ export default function BuyerCommandCenter() {
       
       const response = await fetch('http://localhost:4000/api/ai-store/checkout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-buyer-key': user.buyerKey 
+        },
         body: JSON.stringify({
-          buyerId: 'user_demo_buyer',
           sku,
           qty,
           idempotencyKey: crypto.randomUUID()
@@ -51,16 +83,23 @@ export default function BuyerCommandCenter() {
       const result = await response.json();
       
       if (result.status === 'GATED_2FA' || result.status === 'GATED_1_CLICK') {
-        setMessages(prev => [...prev, { from: 'system', text: `⚠️ FIREWALL TRIGGERED: Transaction exceeds Auto-Approve threshold. Held in ${result.status} state (Audit: ${result.auditId}). Please check your Approval Inbox.` }]);
-      } else if (result.status === 'PAYMENT_CAPTURED') {
-        setMessages(prev => [...prev, { from: 'system', text: `✅ AUTO-APPROVED: Secure payment processed via Razorpay (${result.razorpayOrderId}).` }]);
+        setMessages(prev => [...prev, { from: 'system', text: `⚠️ FIREWALL TRIGGERED: Held in ${result.status} state. Please check your Approval Inbox.` }]);
+      } else if (result.status === 'PAYMENT_CAPTURED' || result.status === 'ORDER_PENDING_CONFIRM') {
+        setMessages(prev => [...prev, { from: 'system', text: `✅ AUTO-APPROVED: Secure payment processed via Razorpay.` }]);
       } else {
-        setMessages(prev => [...prev, { from: 'system', text: `❌ BLOCKED: ${result.message || 'Transaction rejected.'}` }]);
+        setMessages(prev => [...prev, { from: 'system', text: `❌ BLOCKED: ${result.error || result.message || 'Transaction rejected.'}` }]);
       }
     } catch (err) {
       setMessages(prev => [...prev, { from: 'system', text: `❌ ERROR: Failed to reach Merchant API.` }]);
     }
   };
+
+  const statCards = [
+    { label: 'AI Purchases Today', value: stats.totalPurchases, icon: Bot, colorClass: 'text-blue-400 bg-blue-500/10' },
+    { label: 'Budget Used', value: `₹${stats.budgetUsed.toLocaleString()}`, icon: TrendingUp, colorClass: 'text-emerald-400 bg-emerald-500/10' },
+    { label: 'Auto-Approved', value: stats.autoApproved, icon: Zap, colorClass: 'text-yellow-400 bg-yellow-500/10' },
+    { label: 'Gated (Pending)', value: stats.gated, icon: ShieldCheck, colorClass: 'text-orange-400 bg-orange-500/10' },
+  ];
 
   return (
     <DashboardLayout role="buyer">
@@ -72,7 +111,7 @@ export default function BuyerCommandCenter() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          {stats.map(({ label, value, icon: Icon, colorClass }) => {
+          {statCards.map(({ label, value, icon: Icon, colorClass }) => {
             const [text, bg] = colorClass.split(' ');
             return (
               <div key={label} className="bg-card border border-border rounded-xl p-5">

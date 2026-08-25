@@ -18,6 +18,10 @@ const autocart = new AutoCartGateway({
   fetchCatalog: async () => {
     // In real life, this would be a DB query
     return myDatabase;
+  },
+  fetchProduct: async (sku) => {
+    // In real life, this would be `return db.products.findOne({ sku })`
+    return myDatabase.find(p => p.sku === sku);
   }
 });
 

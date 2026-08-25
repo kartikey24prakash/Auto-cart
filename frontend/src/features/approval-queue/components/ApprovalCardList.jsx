@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { auditApi } from '../../audit-terminal/services/auditApi';
 import OneClickCard from './OneClickCard';
 import TOTPModal from './TOTPModal';
+import RazorpayModal from '../../../shared/components/RazorpayModal';
 
 export default function ApprovalCardList() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [totpModalState, setTotpModalState] = useState({ isOpen: false, auditId: null });
+  const [paymentModalState, setPaymentModalState] = useState({ isOpen: false, orderDetails: null });
 
   const fetchTransactions = async () => {
     try {
@@ -17,7 +19,7 @@ export default function ApprovalCardList() {
         return;
       }
       const gated = logs.filter(log => 
-        log.status === 'GATED_1_CLICK' || log.status === 'GATED_2FA'
+        log.status === 'GATED_1_CLICK' || log.status === 'GATED_2FA' || log.status === 'ORDER_CREATED'
       );
       setTransactions(gated);
     } catch (err) {
@@ -32,6 +34,10 @@ export default function ApprovalCardList() {
     const interval = setInterval(fetchTransactions, 3000);
     return () => clearInterval(interval);
   }, []);
+
+  const handlePaymentRequired = (orderDetails) => {
+    setPaymentModalState({ isOpen: true, orderDetails });
+  };
 
   if (loading) {
     return (
@@ -62,6 +68,7 @@ export default function ApprovalCardList() {
             transaction={tx} 
             onProcessed={fetchTransactions}
             onRequest2FA={(auditId) => setTotpModalState({ isOpen: true, auditId })}
+            onPaymentRequired={handlePaymentRequired}
           />
         ))
       )}
@@ -70,8 +77,22 @@ export default function ApprovalCardList() {
         isOpen={totpModalState.isOpen}
         auditId={totpModalState.auditId}
         onClose={() => setTotpModalState({ isOpen: false, auditId: null })}
-        onSuccess={() => {
+        onSuccess={(orderDetails) => {
           setTotpModalState({ isOpen: false, auditId: null });
+          if (orderDetails) {
+            handlePaymentRequired(orderDetails);
+          } else {
+            fetchTransactions();
+          }
+        }}
+      />
+
+      <RazorpayModal
+        isOpen={paymentModalState.isOpen}
+        orderDetails={paymentModalState.orderDetails}
+        onClose={() => setPaymentModalState({ isOpen: false, orderDetails: null })}
+        onProcessed={() => {
+          setPaymentModalState({ isOpen: false, orderDetails: null });
           fetchTransactions();
         }}
       />

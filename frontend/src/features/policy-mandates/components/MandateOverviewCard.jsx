@@ -5,23 +5,37 @@ import { formatCurrency } from '../../../shared/utils/format';
 export default function MandateOverviewCard() {
   const [mandates, setMandates] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editLimit, setEditLimit] = useState('');
+
+  const fetchMandates = async () => {
+    try {
+      const mandateList = await mandateApi.getMandates();
+      setMandates(mandateList);
+    } catch (err) {
+      console.error('Failed to fetch mandates', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchMandates = async () => {
-      try {
-        const mandateList = await mandateApi.getMandates();
-        setMandates(mandateList);
-      } catch (err) {
-        console.error('Failed to fetch mandates', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     fetchMandates();
     const interval = setInterval(fetchMandates, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  const handleUpdateLimit = async (agentId) => {
+    try {
+      const newLimit = parseInt(editLimit, 10);
+      if (isNaN(newLimit) || newLimit < 1) return;
+      await mandateApi.updateMandate(newLimit);
+      setIsEditing(false);
+      fetchMandates(); // Refresh immediately
+    } catch (err) {
+      console.error('Failed to update mandate', err);
+    }
+  };
 
   if (loading) {
     return (
@@ -56,7 +70,7 @@ export default function MandateOverviewCard() {
                   </div>
                   <div>
                     <h3 className="text-sm font-semibold text-slate-400">Agent Identity</h3>
-                    <div className="text-lg font-bold tracking-tight text-white">{m.agentId}</div>
+                    <div className="text-lg font-bold tracking-tight text-white truncate max-w-[200px]">{m.agentId}</div>
                   </div>
                 </div>
                 <span className={`px-3 py-1 text-xs font-bold uppercase rounded-full tracking-wider border ${m.isActive !== false ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
@@ -72,12 +86,42 @@ export default function MandateOverviewCard() {
                   </div>
                   <div className="text-xl font-mono text-slate-200 font-bold">{formatCurrency(m.maxPerTx)}</div>
                 </div>
-                <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700/50 hover:bg-slate-800/50 transition-colors">
-                  <div className="flex items-center gap-2 text-xs text-slate-400 mb-1">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    Daily Budget Limit
+                <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700/50 transition-colors relative">
+                  <div className="flex justify-between items-center text-xs text-slate-400 mb-1">
+                    <div className="flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      Daily Budget Limit
+                    </div>
+                    {!isEditing && (
+                      <button 
+                        onClick={() => { setIsEditing(true); setEditLimit(m.dailyLimit); }}
+                        className="text-indigo-400 hover:text-indigo-300 text-xs font-medium underline underline-offset-2"
+                      >
+                        Edit
+                      </button>
+                    )}
                   </div>
-                  <div className="text-xl font-mono text-slate-200 font-bold">{formatCurrency(m.dailyLimit)}</div>
+                  
+                  {isEditing ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-slate-400">₹</span>
+                      <input 
+                        type="number" 
+                        value={editLimit}
+                        onChange={(e) => setEditLimit(e.target.value)}
+                        className="bg-slate-950 border border-slate-700 rounded px-2 py-1 text-sm w-24 text-slate-200 outline-none focus:border-indigo-500"
+                        autoFocus
+                      />
+                      <button 
+                        onClick={() => handleUpdateLimit(m.agentId)}
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs px-2 py-1.5 rounded"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-xl font-mono text-slate-200 font-bold">{formatCurrency(m.dailyLimit)}</div>
+                  )}
                 </div>
               </div>
 

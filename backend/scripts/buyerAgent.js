@@ -33,7 +33,7 @@ import {
 } from '@google/generative-ai';
 
 // ── Config ────────────────────────────────────────────────────────────────────────────────
-const BASE_URL   = `http://localhost:${process.env.PORT || 5000}`;
+const BASE_URL   = 'http://localhost:4000';
 const AGENT_KEY  = process.env.AGENT_DEMO_KEY || 'agentkey_demo_alpha';
 const MODEL_NAME = process.env.GEMINI_MODEL   || 'gemini-3.6-flash';
 
@@ -86,9 +86,9 @@ async function apiFetch(url, options = {}, attempt = 0) {
 
 // ── Tool implementations (called by the agentic loop) ─────────────────────────────────────
 async function execBrowseCatalog() {
-  log(C.cyan, 'TOOL', 'browse_catalog → GET /api/catalog');
-  const { body } = await apiFetch(`${BASE_URL}/api/catalog`, {
-    headers: { 'x-agent-key': AGENT_KEY },
+  log(C.cyan, 'TOOL', 'browse_catalog → GET /api/ai-store/catalog');
+  const { body } = await apiFetch(`${BASE_URL}/api/ai-store/catalog`, {
+    headers: { 'x-buyer-key': AGENT_KEY },
   });
   return body;
 }
@@ -106,15 +106,19 @@ async function execRequestPurchase({ sku, qty, maxBudget, reason, upsellRef }) {
   };
   if (upsellRef) payload.upsellRef = upsellRef;
 
-  log(C.yellow, 'TOOL', `request_purchase → POST /api/checkout/request`);
+  log(C.yellow, 'TOOL', `request_purchase → POST /api/ai-store/checkout`);
   log(C.dim,    '    ', `sku=${sku}  qty=${qty}  maxBudget=₹${maxBudget}${upsellRef ? `  upsellRef=${upsellRef}` : ''}`);
   log(C.dim,    '    ', `reason="${reason.slice(0, 70)}${reason.length > 70 ? '…' : ''}"`);
 
-  const { status, body } = await apiFetch(`${BASE_URL}/api/checkout/request`, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json', 'x-agent-key': AGENT_KEY },
+  const { status, body } = await fetch('http://localhost:4000/api/ai-store/checkout', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      // We use the logged-in user's actual buyer key so the transactions show up on their dashboard!
+      'x-buyer-key': 'buy_fec62035e2f14043a1f30a455b214be9'
+    },
     body:    JSON.stringify(payload),
-  });
+  }).then(async r => ({ status: r.status, body: await r.json() }));
 
   // Tier-aware result logging
   const tierColour = {

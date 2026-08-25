@@ -1,14 +1,16 @@
 import express from 'express';
 import crypto from 'crypto';
 
+
 export class AutoCartGateway {
   constructor(config) {
-    if (!config.merchantKey || !config.merchantSecret || !config.fetchCatalog) {
-      throw new Error('AutoCartGateway requires merchantKey, merchantSecret, and fetchCatalog');
+    if (!config.merchantKey || !config.merchantSecret || !config.fetchProduct) {
+      throw new Error('AutoCartGateway requires merchantKey, merchantSecret, and fetchProduct');
     }
     this.merchantKey = config.merchantKey;
     this.merchantSecret = config.merchantSecret;
-    this.fetchCatalog = config.fetchCatalog;
+    this.fetchCatalog = config.fetchCatalog; // Optional for legacy/indexing
+    this.fetchProduct = config.fetchProduct;
     this.nexusUrl = config.nexusUrl || 'http://localhost:5000';
   }
 
@@ -25,6 +27,9 @@ export class AutoCartGateway {
 
     router.get('/catalog', async (req, res) => {
       try {
+        if (!this.fetchCatalog) {
+          return res.status(501).json({ error: 'Merchant does not support full catalog fetching' });
+        }
         const fullCatalog = await this.fetchCatalog();
         const leanCatalog = fullCatalog.map(item => ({
           sku: item.sku,
@@ -40,14 +45,14 @@ export class AutoCartGateway {
 
     router.post('/checkout', async (req, res) => {
       try {
-        const { buyerId, sku, qty, idempotencyKey } = req.body;
+        const { sku, qty, idempotencyKey } = req.body;
+        const buyerKey = req.headers['x-buyer-key'];
 
-        if (!buyerId || !sku || !qty || !idempotencyKey) {
-          return res.status(400).json({ error: 'Missing required checkout fields' });
+        if (!buyerKey || !sku || !qty || !idempotencyKey) {
+          return res.status(400).json({ error: 'Missing required checkout fields or x-buyer-key header' });
         }
 
-        const catalog = await this.fetchCatalog();
-        const product = catalog.find(p => p.sku === sku);
+        const product = await this.fetchProduct(sku);
 
         if (!product) {
           return res.status(404).json({ error: 'Product SKU not found in merchant catalog' });
@@ -60,7 +65,7 @@ export class AutoCartGateway {
 
         const enginePayload = {
           merchantKey: this.merchantKey,
-          buyerId,
+          buyerKey,
           sku,
           qty,
           lineTotal,
@@ -80,6 +85,10 @@ export class AutoCartGateway {
 
         const engineResult = await response.json();
 
+        if (!response.ok) {
+          return res.status(response.status).json(engineResult);
+        }
+
         if (engineResult.status !== 'AUTO_APPROVED') {
           return res.status(200).json({
             status: engineResult.status,
@@ -88,23 +97,24 @@ export class AutoCartGateway {
           });
         }
 
-        const simulatedRazorpayOrderId = `order_sdk_${Date.now()}`;
-
+        // 7. Auto-Approved! The Engine has generated a real Razorpay Order.
+        // We now just finalize the SDK side by telling the engine we're done.
+        // In a real flow, a webhook would finalize it, but for B2B API testing, we trigger commit here.
         await fetch(`${this.nexusUrl}/api/engine/commit`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-autocart-signature': this._signPayload({ auditId: engineResult.auditId, razorpayOrderId: simulatedRazorpayOrderId })
+            'x-autocart-signature': this._signPayload({ auditId: engineResult.auditId, razorpayPaymentId: 'pay_sdk_auto' })
           },
           body: JSON.stringify({
             auditId: engineResult.auditId,
-            razorpayOrderId: simulatedRazorpayOrderId
+            razorpayPaymentId: 'pay_sdk_auto'
           })
         });
 
         return res.status(200).json({
           status: 'PAYMENT_CAPTURED',
-          razorpayOrderId: simulatedRazorpayOrderId,
+          razorpayOrderId: engineResult.razorpayOrderId,
           auditId: engineResult.auditId,
           receipt: `Paid ${lineTotal} INR`
         });

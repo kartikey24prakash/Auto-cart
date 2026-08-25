@@ -1,14 +1,17 @@
 // src/controllers/dashboardController.js
 //
-// Merchant-facing read-only analytics.
-// All routes require x-merchant-key (authMiddleware applied in the route).
-//
-// GET /api/dashboard/logs    — Paginated audit stream (newest first, synthetic excluded)
-// GET /api/dashboard/metrics — Conversion rate, prevention count, AOV comparison
-// GET /api/dashboard/mandate — Current mandate + live spend meters
+// Merchant & Buyer-facing read-only analytics.
+// All routes require JWT authentication (jwtMiddleware applied in the route).
 
 import { AuditLog } from '../models/AuditLog.js';
-import { AgentMandate } from '../models/AgentMandate.js';
+import { User } from '../models/User.js';
+
+// Helper to scope queries by role
+const getQueryFilter = (req) => {
+  return req.user.role.toUpperCase() === 'MERCHANT' 
+    ? { merchantId: req.user.userId } 
+    : { buyerId: req.user.userId };
+};
 
 // ════════════════════════════════════════════════════════════════════════════════════════
 // GET /api/dashboard/logs
@@ -16,7 +19,8 @@ import { AgentMandate } from '../models/AgentMandate.js';
 // ════════════════════════════════════════════════════════════════════════════════════════
 export const getLogs = async (req, res, next) => {
   try {
-    const logs = await AuditLog.find().sort({ createdAt: -1 }).limit(20).lean();
+    const filter = getQueryFilter(req);
+    const logs = await AuditLog.find(filter).sort({ createdAt: -1 }).limit(20).lean();
     
     // Format for frontend
     const formattedLogs = logs.map(l => ({
@@ -36,10 +40,11 @@ export const getLogs = async (req, res, next) => {
 // ════════════════════════════════════════════════════════════════════════════════════════
 // GET /api/dashboard/metrics
 // [NEW] AI upsell conversion rate, policy violation prevention count, AOV comparison.
-// DECISIONS §10: synthetic rows provide the baseline AOV so the metric renders non-zero.
 // ════════════════════════════════════════════════════════════════════════════════════════
 export const getMetrics = async (req, res, next) => {
   try {
+    const filter = getQueryFilter(req);
+
     // Run all aggregations in parallel for speed
     const [
       offersIssuedCount,
@@ -50,14 +55,14 @@ export const getMetrics = async (req, res, next) => {
       statusCountsAgg,
     ] = await Promise.all([
       // 1. Offers issued: rows where offerIssued is not null
-      AuditLog.countDocuments({ offerIssued: { $ne: null } }),
+      AuditLog.countDocuments({ ...filter, offerIssued: { $ne: null } }),
 
-      // 2. Offers accepted: rows where upsellRef is not null (the agent accepted a prior offer)
-      AuditLog.countDocuments({ upsellRef: { $ne: null } }),
+      // 2. Offers accepted: rows where upsellRef is not null
+      AuditLog.countDocuments({ ...filter, upsellRef: { $ne: null } }),
 
       // 3. Prevention count: BLOCKED + DENIED rows, broken down by blockReason
       AuditLog.aggregate([
-        { $match: { status: { $in: ['BLOCKED', 'DENIED'] } } },
+        { $match: { ...filter, status: { $in: ['BLOCKED', 'DENIED'] } } },
         {
           $group: {
             _id: { status: '$status', blockReason: '$blockReason' },
@@ -66,11 +71,11 @@ export const getMetrics = async (req, res, next) => {
         },
       ]),
 
-      // 4. Baseline AOV: synthetic historical ORDER_CREATED rows (seeded by seedDb.js)
-      //    These represent normal (non-AI-assisted) orders.
+      // 4. Baseline AOV
       AuditLog.aggregate([
         {
           $match: {
+            ...filter,
             synthetic: true,
             status: { $in: ['ORDER_CREATED', 'PAYMENT_CAPTURED'] },
             upsellRef: null,
@@ -79,10 +84,11 @@ export const getMetrics = async (req, res, next) => {
         { $group: { _id: null, avgAmount: { $avg: '$amount' }, count: { $sum: 1 } } },
       ]),
 
-      // 5. AI-Assisted AOV: live rows where the agent accepted an upsell offer
+      // 5. AI-Assisted AOV
       AuditLog.aggregate([
         {
           $match: {
+            ...filter,
             synthetic: false,
             status: { $in: ['ORDER_CREATED', 'PAYMENT_CAPTURED'] },
             upsellRef: { $ne: null },
@@ -93,7 +99,7 @@ export const getMetrics = async (req, res, next) => {
 
       // 6. Full status breakdown for the dashboard stats bar
       AuditLog.aggregate([
-        { $match: { synthetic: { $ne: true } } },
+        { $match: { ...filter, synthetic: { $ne: true } } },
         { $group: { _id: '$status', count: { $sum: 1 } } },
       ]),
     ]);
@@ -113,7 +119,6 @@ export const getMetrics = async (req, res, next) => {
       statusCounts[row._id] = row.count;
     }
 
-    // ── Upsell conversion rate ─────────────────────────────────────────────────────
     const conversionRate =
       offersIssuedCount > 0
         ? parseFloat(((offersAcceptedCount / offersIssuedCount) * 100).toFixed(1))
@@ -148,23 +153,80 @@ export const getMetrics = async (req, res, next) => {
 // ════════════════════════════════════════════════════════════════════════════════════════
 export const getMandate = async (req, res, next) => {
   try {
-    // Return all mandates (hackathon scope: there is one agent)
-    const mandates = await AgentMandate.find({})
-      .select('-apiKey -__v') // never expose the credential to the dashboard
-      .lean();
+    // Only Buyers have spending limits in the new multi-tenant design
+    if (req.user.role.toUpperCase() !== 'BUYER') {
+      return res.json({ mandates: [] });
+    }
 
-    const formatted = mandates.map((m) => ({
-      agentId: m.agentId,
-      maxPerTx: m.maxPerTx,
-      dailyLimit: m.dailyLimit,
-      spentToday: m.spentToday,
-      dailyRemaining: Math.max(0, m.dailyLimit - m.spentToday),
-      spentPercent: parseFloat(((m.spentToday / m.dailyLimit) * 100).toFixed(1)),
-      lastResetDate: m.lastResetDate,
-      updatedAt: m.updatedAt,
-    }));
+    const user = await User.findOne({ userId: req.user.userId, role: 'BUYER' }).lean();
+    if (!user || !user.buyerConfig) {
+      return res.json({ mandates: [] });
+    }
+
+    const config = user.buyerConfig;
+    const formatted = [{
+      agentId: user.userId,
+      maxPerTx: config.dailyBudgetLimit, // Fallback if no maxPerTx
+      dailyLimit: config.dailyBudgetLimit,
+      spentToday: config.spentToday,
+      dailyRemaining: Math.max(0, config.dailyBudgetLimit - config.spentToday),
+      spentPercent: parseFloat(((config.spentToday / config.dailyBudgetLimit) * 100).toFixed(1)),
+      lastResetDate: 'N/A', // To be implemented in Phase 2
+      updatedAt: user.updatedAt,
+    }];
 
     return res.json({ mandates: formatted });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateMandate = async (req, res, next) => {
+  try {
+    if (req.user.role.toUpperCase() !== 'BUYER') {
+      return res.status(403).json({ error: 'Only buyers can update their mandate' });
+    }
+    const { dailyLimit } = req.body;
+    if (typeof dailyLimit !== 'number' || dailyLimit < 1) {
+      return res.status(400).json({ error: 'Invalid dailyLimit' });
+    }
+
+    const user = await User.findOne({ userId: req.user.userId, role: 'BUYER' });
+    if (!user) return res.status(404).json({ error: 'Buyer not found' });
+
+    user.buyerConfig.dailyBudgetLimit = dailyLimit;
+    await user.save();
+
+    res.json({ success: true, dailyLimit: user.buyerConfig.dailyBudgetLimit });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getShipping = async (req, res, next) => {
+  try {
+    if (req.user.role.toUpperCase() !== 'BUYER') return res.status(403).json({ error: 'Only buyers can manage shipping profiles' });
+    const user = await User.findOne({ userId: req.user.userId, role: 'BUYER' }).lean();
+    if (!user) return res.status(404).json({ error: 'Buyer not found' });
+    res.json({ shippingProfiles: user.buyerConfig.shippingProfiles || [] });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateShipping = async (req, res, next) => {
+  try {
+    if (req.user.role.toUpperCase() !== 'BUYER') return res.status(403).json({ error: 'Only buyers can manage shipping profiles' });
+    const { addressLine1, city, state, postalCode, country } = req.body;
+    if (!addressLine1 || !city || !state || !postalCode || !country) {
+      return res.status(400).json({ error: 'All address fields are required' });
+    }
+    const user = await User.findOne({ userId: req.user.userId, role: 'BUYER' });
+    if (!user) return res.status(404).json({ error: 'Buyer not found' });
+    
+    user.buyerConfig.shippingProfiles = [{ addressLine1, city, state, postalCode, country }];
+    await user.save();
+    res.json({ success: true, shippingProfiles: user.buyerConfig.shippingProfiles });
   } catch (err) {
     next(err);
   }

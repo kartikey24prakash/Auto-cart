@@ -11,8 +11,9 @@ const userSchema = new mongoose.Schema(
     // Config for BUYER role
     buyerConfig: {
       buyerKey: { type: String, unique: true, sparse: true },
-      dailyBudgetLimit: { type: Number, default: 5000 },
+      dailyBudgetLimit: { type: Number, default: 50000 },
       spentToday: { type: Number, default: 0 },
+      lastResetDate: { type: Date, default: null },
       shippingProfiles: [
         {
           id: { type: String, default: uuidv4 },

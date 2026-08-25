@@ -26,6 +26,7 @@ export default function TerminalLogTable() {
               <th className="px-6 py-3 font-medium">Agent ID</th>
               <th className="px-6 py-3 font-medium">Action</th>
               <th className="px-6 py-3 font-medium">Amount</th>
+              <th className="px-6 py-3 font-medium">Destination (Fulfillment)</th>
               <th className="px-6 py-3 font-medium">Status</th>
               <th className="px-6 py-3 font-medium">Block Reason</th>
             </tr>
@@ -33,13 +34,13 @@ export default function TerminalLogTable() {
           <tbody className="divide-y divide-border">
             {loading && logs.length === 0 ? (
               <tr>
-                <td colSpan="6" className="py-8 text-center text-muted-foreground font-medium animate-pulse">
+                <td colSpan="7" className="py-8 text-center text-muted-foreground font-medium animate-pulse">
                   Connecting to gateway...
                 </td>
               </tr>
             ) : logs.length === 0 ? (
               <tr>
-                <td colSpan="6" className="py-8 text-center text-muted-foreground font-medium">
+                <td colSpan="7" className="py-8 text-center text-muted-foreground font-medium">
                   Awaiting agent telemetry...
                 </td>
               </tr>
@@ -49,11 +50,22 @@ export default function TerminalLogTable() {
                   <td className="px-6 py-3 font-mono text-muted-foreground text-xs">{formatDate(log.createdAt || log.timestamp)}</td>
                   <td className="px-6 py-3 font-mono text-muted-foreground">
                     <span className="px-2 py-1 bg-muted rounded-md border border-border transition-colors text-xs">
-                      {log.agentId ? log.agentId.substring(0, 8) + '...' : log.ipAddress || 'Unknown'}
+                      {log.agentId || log.buyerId ? (log.agentId || log.buyerId).substring(0, 8) + '...' : log.ipAddress || 'Unknown'}
                     </span>
                   </td>
                   <td className="px-6 py-3 font-medium text-foreground">{log.sku || log.actionType}</td>
                   <td className="px-6 py-3 font-mono text-foreground">{formatCurrency(log.amount)}</td>
+                  <td className="px-6 py-3">
+                    {log.shippingAddress ? (
+                      <div className="text-xs text-muted-foreground font-mono space-y-0.5 leading-tight whitespace-normal max-w-[150px]">
+                        <div className="font-semibold text-foreground">{log.shippingAddress.addressLine1}</div>
+                        <div>{log.shippingAddress.city}, {log.shippingAddress.state} {log.shippingAddress.postalCode}</div>
+                        <div>{log.shippingAddress.country}</div>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground italic">N/A</span>
+                    )}
+                  </td>
                   <td className="px-6 py-3"><Badge status={log.status} /></td>
                   <td className="px-6 py-3 text-red-500 text-xs font-mono">{log.blockReason || '-'}</td>
                 </tr>

@@ -25,6 +25,15 @@ const auditLogSchema = new mongoose.Schema(
     qty: { type: Number, required: true, min: 1 },
     amount: { type: Number, required: true, min: 0 },
     reason: { type: String },
+    
+    // Fulfillment
+    shippingAddress: {
+      addressLine1: String,
+      city: String,
+      state: String,
+      postalCode: String,
+      country: String
+    },
 
     // State & Security
     status: { type: String, enum: STATUS_VALUES, required: true, default: 'PENDING' },

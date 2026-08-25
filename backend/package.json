@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon src/app.js",
+    "merchant": "nodemon dummy-merchant.js",
     "seed": "node scripts/seedDb.js",
     "agent": "node scripts/buyerAgent.js"
   },

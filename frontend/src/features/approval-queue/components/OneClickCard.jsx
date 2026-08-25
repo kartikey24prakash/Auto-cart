@@ -4,7 +4,7 @@ import Badge from '../../../shared/components/Badge';
 import DenyButton from './DenyButton';
 import { formatCurrency, formatDate } from '../../../shared/utils/format';
 
-export default function OneClickCard({ transaction, onProcessed, onRequest2FA }) {
+export default function OneClickCard({ transaction, onProcessed, onRequest2FA, onPaymentRequired }) {
   const [loading, setLoading] = useState(false);
 
   const handleApprove = async () => {
@@ -12,11 +12,27 @@ export default function OneClickCard({ transaction, onProcessed, onRequest2FA })
       onRequest2FA(transaction.auditId);
       return;
     }
+    
+    // If it's already ORDER_CREATED, we just need to pay
+    if (transaction.status === 'ORDER_CREATED') {
+      onPaymentRequired({
+        auditId: transaction.auditId,
+        razorpayOrderId: transaction.razorpayOrderId,
+        amount: transaction.amount,
+        keyId: transaction.merchantConfig?.razorpayKeyId || 'rzp_test_TOZjfrDBXXsQ78' // Fallback for UI if missing
+      });
+      return;
+    }
 
     setLoading(true);
     try {
-      await approvalApi.approve(transaction.auditId);
-      onProcessed();
+      const res = await approvalApi.approve(transaction.auditId);
+      onPaymentRequired({
+        auditId: transaction.auditId,
+        razorpayOrderId: res.razorpayOrderId,
+        amount: res.amount,
+        keyId: res.keyId
+      });
     } catch (err) {
       console.error('Failed to approve', err);
       alert('Failed to approve: ' + (err.response?.data?.error || err.message));
