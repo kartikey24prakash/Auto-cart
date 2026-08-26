@@ -245,3 +245,16 @@ export const updateShipping = async (req, res, next) => {
     next(err);
   }
 };
+
+export const getCatalog = async (req, res, next) => {
+  try {
+    if (req.user.role.toUpperCase() !== 'MERCHANT') return res.status(403).json({ error: 'Only merchants can view catalog' });
+    // Need to import Product if not imported
+    const { Product } = await import('../models/Product.js');
+    const products = await Product.find({ merchantId: req.user.userId }).sort({ createdAt: -1 });
+    res.json({ products });
+  } catch (err) {
+    next(err);
+  }
+};
+

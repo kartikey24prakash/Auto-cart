@@ -16,6 +16,8 @@ import MerchantOverview from './features/merchant/pages/MerchantOverview';
 import MerchantFirewall from './features/merchant/pages/MerchantFirewall';
 import MerchantTraffic from './features/merchant/pages/MerchantTraffic';
 import MerchantKeys from './features/merchant/pages/MerchantKeys';
+import MerchantAgent from './features/merchant/pages/MerchantAgent';
+import MerchantCatalog from './features/merchant/pages/MerchantCatalog';
 
 // Route Guard
 const ProtectedRoute = ({ children, allowedRole }) => {
@@ -48,6 +50,8 @@ function AppRoutes() {
 
       {/* Merchant Shield (Protected) */}
       <Route path="/merchant" element={<ProtectedRoute allowedRole="merchant"><MerchantOverview /></ProtectedRoute>} />
+      <Route path="/merchant/agent" element={<ProtectedRoute allowedRole="merchant"><MerchantAgent /></ProtectedRoute>} />
+      <Route path="/merchant/catalog" element={<ProtectedRoute allowedRole="merchant"><MerchantCatalog /></ProtectedRoute>} />
       <Route path="/merchant/firewall" element={<ProtectedRoute allowedRole="merchant"><MerchantFirewall /></ProtectedRoute>} />
       <Route path="/merchant/traffic" element={<ProtectedRoute allowedRole="merchant"><MerchantTraffic /></ProtectedRoute>} />
       <Route path="/merchant/keys" element={<ProtectedRoute allowedRole="merchant"><MerchantKeys /></ProtectedRoute>} />

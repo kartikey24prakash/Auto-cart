@@ -41,26 +41,31 @@ export function initSocket(httpServer) {
       console.log(`[Socket] Message from ${userId}: ${message}`);
       
       try {
-        const user = await User.findOne({ userId, role: 'BUYER' });
-        if (!user || !user.buyerConfig) {
-          socket.emit('error', { message: 'Invalid buyer profile' });
+        const user = await User.findOne({ userId });
+        if (!user) {
+          socket.emit('error', { message: 'Invalid profile' });
           return;
         }
-
-        const buyerKey = user.buyerConfig.buyerKey;
 
         // 1. Save user message to DB
         await ChatMessage.create({ chat: chatId, role: 'user', content: message });
 
-        // 2. Call Gemini AI Service (pass history)
+        // 2. Load history
         const messages = await ChatMessage.find({ chat: chatId }).sort({ createdAt: 1 });
-        const history = messages.slice(0, -1); // Exclude the message we just added
+        const history = messages.slice(0, -1); 
         
         socket.emit('ai_typing', { isTyping: true });
         
-        const aiResponseText = await aiService.generateResponse(history, message, buyerKey);
+        // 3. Call AI based on role
+        let aiResponseText = "";
+        if (user.role === 'BUYER') {
+          const buyerKey = user.buyerConfig?.buyerKey;
+          aiResponseText = await aiService.generateResponse(history, message, buyerKey);
+        } else if (user.role === 'MERCHANT') {
+          aiResponseText = await aiService.generateMerchantResponse(history, message, user.userId);
+        }
         
-        // 3. Save AI response to DB
+        // 4. Save AI response to DB
         const aiMessage = await ChatMessage.create({ chat: chatId, role: 'ai', content: aiResponseText });
 
         // Generate title if this is the very first user message

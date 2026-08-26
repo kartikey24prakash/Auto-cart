@@ -34,6 +34,108 @@ const searchCatalogTool = tool(
     }
 );
 
+import { AuditLog } from "../models/AuditLog.js";
+
+// ... existing code down to class AiService ...
+
+const uploadProductTool = tool(
+    async ({ name, price, stock, category, merchantId }) => {
+        try {
+            const sku = `sku-${Math.random().toString(36).substring(2, 8)}`;
+            const product = await Product.create({
+                name,
+                price,
+                stock,
+                category: category || 'General',
+                sku,
+                merchantId
+            });
+            return JSON.stringify({ success: true, product });
+        } catch (err) {
+            return JSON.stringify({ error: err.message });
+        }
+    },
+    {
+        name: "upload_product",
+        description: "Uploads a new product to the Auto-Cart catalog.",
+        schema: z.object({
+            name: z.string(),
+            price: z.number(),
+            stock: z.number(),
+            category: z.string().optional(),
+            merchantId: z.string()
+        })
+    }
+);
+
+const updateInventoryTool = tool(
+    async ({ sku, price, stock, merchantId }) => {
+        try {
+            const update = {};
+            if (price !== undefined) update.price = price;
+            if (stock !== undefined) update.stock = stock;
+            
+            const product = await Product.findOneAndUpdate(
+                { sku, merchantId }, 
+                update, 
+                { new: true }
+            );
+            if (!product) return JSON.stringify({ error: 'Product not found or not owned by you.' });
+            return JSON.stringify({ success: true, product });
+        } catch (err) {
+            return JSON.stringify({ error: err.message });
+        }
+    },
+    {
+        name: "update_inventory",
+        description: "Updates the price or stock of an existing product.",
+        schema: z.object({
+            sku: z.string(),
+            price: z.number().optional(),
+            stock: z.number().optional(),
+            merchantId: z.string()
+        })
+    }
+);
+
+const viewCatalogTool = tool(
+    async ({ merchantId }) => {
+        try {
+            const products = await Product.find({ merchantId }).lean();
+            return JSON.stringify(products);
+        } catch (err) {
+            return JSON.stringify({ error: err.message });
+        }
+    },
+    {
+        name: "view_catalog",
+        description: "Fetches all products currently owned by the merchant.",
+        schema: z.object({
+            merchantId: z.string()
+        })
+    }
+);
+
+const analyzeSalesTool = tool(
+    async ({ merchantId }) => {
+        try {
+            const logs = await AuditLog.find({ merchantId }).lean();
+            const totalOrders = logs.length;
+            const totalRevenue = logs.reduce((sum, log) => sum + (log.amount || 0), 0);
+            return JSON.stringify({ totalOrders, totalRevenue, recentSales: logs.slice(-5) });
+        } catch (err) {
+            return JSON.stringify({ error: err.message });
+        }
+    },
+    {
+        name: "analyze_sales",
+        description: "Analyzes the merchant's sales and order history.",
+        schema: z.object({
+            merchantId: z.string()
+        })
+    }
+);
+
 export class AiService {
   async executeCheckout(args, buyerKey) {
     const { sku, qty, merchantId } = args;
@@ -104,8 +206,52 @@ export class AiService {
     ];
 
     const response = await agent.invoke({ messages });
+    const finalMessage = response.messages[response.messages.length - 1];
+    return finalMessage.content;
+  }
+
+  async generateMerchantResponse(history, userMessage, merchantId) {
+    // We bind the merchantId internally so the AI doesn't have to guess it,
+    // but the tools are defined globally, so we wrap them to automatically inject merchantId.
+    const boundUploadProduct = tool(
+        async (args) => uploadProductTool.invoke({ ...args, merchantId }),
+        { name: "upload_product", description: uploadProductTool.description, schema: uploadProductTool.schema.omit({ merchantId: true }) }
+    );
     
-    // LangChain React Agent returns { messages: [ ... ] } where the last message is the AI's final answer
+    const boundUpdateInventory = tool(
+        async (args) => updateInventoryTool.invoke({ ...args, merchantId }),
+        { name: "update_inventory", description: updateInventoryTool.description, schema: updateInventoryTool.schema.omit({ merchantId: true }) }
+    );
+    
+    const boundViewCatalog = tool(
+        async () => viewCatalogTool.invoke({ merchantId }),
+        { name: "view_catalog", description: viewCatalogTool.description, schema: z.object({}) }
+    );
+    
+    const boundAnalyzeSales = tool(
+        async () => analyzeSalesTool.invoke({ merchantId }),
+        { name: "analyze_sales", description: analyzeSalesTool.description, schema: z.object({}) }
+    );
+
+    const agent = createReactAgent({
+        llm: geminiModel,
+        tools: [boundUploadProduct, boundUpdateInventory, boundViewCatalog, boundAnalyzeSales],
+    });
+
+    const messages = [
+        new SystemMessage(`You are the Auto-Cart AI Merchant Assistant. 
+        You help the merchant manage their store. You can upload products, update inventory, view their catalog, and analyze sales.
+        If you upload or update a product, summarize the action for the user. Do not include raw JSON.
+        Format catalogs in neat markdown tables.`),
+        ...history.map(m => {
+            if (m.role === 'user') return new HumanMessage(m.content);
+            if (m.role === 'ai') return new AIMessage(m.content);
+            return null;
+        }).filter(Boolean),
+        new HumanMessage(userMessage)
+    ];
+
+    const response = await agent.invoke({ messages });
     const finalMessage = response.messages[response.messages.length - 1];
     return finalMessage.content;
   }

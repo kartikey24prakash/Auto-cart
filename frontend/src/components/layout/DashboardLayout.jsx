@@ -16,6 +16,8 @@ const buyerNav = [
 
 const merchantNav = [
   { icon: LayoutDashboard, label: 'Overview', to: '/merchant' },
+  { icon: Bot, label: 'AI Agent', to: '/merchant/agent' },
+  { icon: ShoppingCart, label: 'Inventory Catalog', to: '/merchant/catalog' },
   { icon: Shield, label: 'Firewall Rules', to: '/merchant/firewall' },
   { icon: ClipboardList, label: 'AI Traffic', to: '/merchant/traffic' },
   { icon: Key, label: 'API Keys', to: '/merchant/keys' },
