@@ -19,6 +19,7 @@ import webhookRoutes   from './routes/webhookRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import engineRoutes    from './routes/engineRoutes.js';
 import authRoutes      from './routes/authRoutes.js';
+import chatRoutes      from './routes/chatRoutes.js';
 import { initSocket } from './sockets/chatSocket.js';
 
 const app = express();
@@ -54,6 +55,7 @@ app.use('/api/dashboard', dashboardRoutes);  // GET  /api/dashboard/logs    (jwt
                                               // GET  /api/dashboard/metrics (jwt)
                                               // GET  /api/dashboard/mandate (jwt)
 app.use('/api/engine',    engineRoutes);     // POST /api/engine/verify-intent & /commit
+app.use('/api/chat',      chatRoutes);
 // Note: /api/webhook is already mounted above the JSON parser
 
 // ── 404 Fallback ──────────────────────────────────────────────────────────────────────────

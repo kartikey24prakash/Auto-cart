@@ -1,5 +1,6 @@
 import { Server } from 'socket.io';
-import { ChatSession } from '../models/ChatSession.js';
+import { Chat } from '../models/Chat.js';
+import { Message as ChatMessage } from '../models/Message.js';
 import { aiService } from '../services/aiService.js';
 import { User } from '../models/User.js';
 
@@ -8,7 +9,7 @@ let io;
 export function initSocket(httpServer) {
   io = new Server(httpServer, {
     cors: {
-      origin: '*', // For hackathon, allow all
+      origin: '*',
       methods: ['GET', 'POST']
     }
   });
@@ -16,35 +17,30 @@ export function initSocket(httpServer) {
   io.on('connection', (socket) => {
     console.log(`[Socket] Client connected: ${socket.id}`);
 
-    // Join a chat room based on user ID
-    socket.on('join_chat', async ({ userId, sessionId }) => {
-      socket.join(sessionId);
-      console.log(`[Socket] User ${userId} joined session ${sessionId}`);
+    // Join a chat room based on chat document ID
+    socket.on('join_chat', async ({ userId, chatId }) => {
+      socket.join(chatId);
+      console.log(`[Socket] User ${userId} joined chat ${chatId}`);
       
-      // Load history
-      const session = await ChatSession.findOne({ sessionId });
-      if (session) {
-        socket.emit('chat_history', session.messages);
+      const messages = await ChatMessage.find({ chat: chatId }).sort({ createdAt: 1 });
+      
+      if (messages.length > 0) {
+        socket.emit('chat_history', messages);
       } else {
-        // Create new session with system greeting
-        const newSession = await ChatSession.create({
-          sessionId,
-          userId,
-          messages: [{
-            role: 'ai',
-            content: "Hello! I am your Auto-Cart shopping agent. How can I help you find and buy things today?"
-          }]
+        // Create system greeting
+        const greeting = await ChatMessage.create({
+          chat: chatId,
+          role: 'ai',
+          content: "Hello! I am your Auto-Cart shopping agent. How can I help you find and buy things today?"
         });
-        socket.emit('chat_history', newSession.messages);
+        socket.emit('chat_history', [greeting]);
       }
     });
 
-    // Handle incoming chat messages
-    socket.on('send_message', async ({ userId, sessionId, message }) => {
+    socket.on('send_message', async ({ userId, chatId, message }) => {
       console.log(`[Socket] Message from ${userId}: ${message}`);
       
       try {
-        // Fetch buyer key
         const user = await User.findOne({ userId, role: 'BUYER' });
         if (!user || !user.buyerConfig) {
           socket.emit('error', { message: 'Invalid buyer profile' });
@@ -54,23 +50,29 @@ export function initSocket(httpServer) {
         const buyerKey = user.buyerConfig.buyerKey;
 
         // 1. Save user message to DB
-        const session = await ChatSession.findOne({ sessionId });
-        session.messages.push({ role: 'user', content: message });
-        await session.save();
+        await ChatMessage.create({ chat: chatId, role: 'user', content: message });
 
         // 2. Call Gemini AI Service (pass history)
-        const history = session.messages.slice(0, -1); // Exclude the message we just added (GenAI takes history + new prompt separately)
+        const messages = await ChatMessage.find({ chat: chatId }).sort({ createdAt: 1 });
+        const history = messages.slice(0, -1); // Exclude the message we just added
         
         socket.emit('ai_typing', { isTyping: true });
         
         const aiResponseText = await aiService.generateResponse(history, message, buyerKey);
         
         // 3. Save AI response to DB
-        session.messages.push({ role: 'ai', content: aiResponseText });
-        await session.save();
+        const aiMessage = await ChatMessage.create({ chat: chatId, role: 'ai', content: aiResponseText });
+
+        // Generate title if this is the very first user message
+        const userMessageCount = messages.filter(m => m.role === 'user').length;
+        if (userMessageCount === 1) {
+           await Chat.findByIdAndUpdate(chatId, { title: message.substring(0, 30) + '...' });
+           // we could notify frontend to refresh title here
+           socket.emit('chat_title_updated', { chatId, title: message.substring(0, 30) + '...' });
+        }
 
         // 4. Send response back to frontend
-        socket.emit('receive_message', { role: 'ai', content: aiResponseText });
+        socket.emit('receive_message', aiMessage);
         socket.emit('ai_typing', { isTyping: false });
 
       } catch (err) {

@@ -1,56 +1,11 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Bot, Zap, ShieldCheck, TrendingUp } from 'lucide-react';
-import { useSession } from '@/shared/state/SessionContext';
+import { Bot, Zap, ShieldCheck, TrendingUp, ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import apiClient from '@/shared/services/apiClient';
-import { io } from 'socket.io-client';
 
 export default function BuyerCommandCenter() {
-  const { user } = useSession();
-  const [query, setQuery] = useState('');
-  const [messages, setMessages] = useState([]);
-  const [isTyping, setIsTyping] = useState(false);
-  const socketRef = useRef(null);
-  const messagesEndRef = useRef(null);
-  
   const [stats, setStats] = useState({ totalPurchases: 0, budgetUsed: 0, autoApproved: 0, gated: 0 });
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, isTyping]);
-
-  useEffect(() => {
-    // Connect to Socket.io Server
-    socketRef.current = io('http://localhost:5000');
-    
-    // Join a unique chat session based on the user's ID
-    const sessionId = `chat_${user?.userId || 'guest'}`;
-    socketRef.current.emit('join_chat', { userId: user.userId, sessionId });
-
-    socketRef.current.on('chat_history', (history) => {
-      setMessages(history);
-    });
-
-    socketRef.current.on('receive_message', (msg) => {
-      setMessages(prev => [...prev, msg]);
-    });
-
-    socketRef.current.on('ai_typing', ({ isTyping }) => {
-      setIsTyping(isTyping);
-    });
-
-    socketRef.current.on('error', (err) => {
-      setMessages(prev => [...prev, { role: 'system', content: `❌ Error: ${err.message}` }]);
-    });
-
-    return () => {
-      socketRef.current.disconnect();
-    };
-  }, [user]);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -67,19 +22,7 @@ export default function BuyerCommandCenter() {
       } catch (err) {}
     };
     fetchStats();
-  }, [messages]); // Refresh stats when messages update (in case a purchase was made)
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!query.trim()) return;
-    
-    const sessionId = `chat_${user?.userId || 'guest'}`;
-    socketRef.current.emit('send_message', { userId: user.userId, sessionId, message: query });
-    
-    // Optimistically add user message
-    setMessages(prev => [...prev, { role: 'user', content: query }]);
-    setQuery('');
-  };
+  }, []);
 
   const statCards = [
     { label: 'AI Purchases Today', value: stats.totalPurchases, icon: Bot, colorClass: 'text-blue-400 bg-blue-500/10' },
@@ -93,14 +36,14 @@ export default function BuyerCommandCenter() {
       <div className="max-w-5xl mx-auto">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-foreground">Command Center</h1>
-          <p className="text-muted-foreground text-sm mt-1">Dispatch your AI shopping agent and monitor its activity.</p>
+          <p className="text-muted-foreground text-sm mt-1">Monitor your AI's purchasing activity and trust engine statistics.</p>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {statCards.map(({ label, value, icon: Icon, colorClass }) => {
             const [text, bg] = colorClass.split(' ');
             return (
-              <div key={label} className="bg-card border border-border rounded-xl p-5">
+              <div key={label} className="bg-card border border-border rounded-xl p-5 shadow-sm">
                 <div className={`${bg} ${text} w-9 h-9 rounded-lg flex items-center justify-center mb-3`}>
                   <Icon className="w-4 h-4" />
                 </div>
@@ -111,47 +54,20 @@ export default function BuyerCommandCenter() {
           })}
         </div>
 
-        <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm flex flex-col">
-          <div className="border-b border-border px-5 py-3 flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-red-500" />
-            <div className="w-3 h-3 rounded-full bg-yellow-500" />
-            <div className="w-3 h-3 rounded-full bg-green-500" />
-            <span className="ml-3 text-xs text-muted-foreground font-mono">autocart-scout — Live AI Stream</span>
+        <div className="bg-card border border-border rounded-xl p-8 flex flex-col items-center justify-center text-center shadow-sm">
+          <div className="bg-blue-500/10 text-blue-500 w-16 h-16 rounded-full flex items-center justify-center mb-4">
+            <Bot className="w-8 h-8" />
           </div>
-          
-          <div className="flex-1 h-[400px] overflow-y-auto p-5 font-mono text-sm flex flex-col gap-4">
-            {messages.map((m, i) => (
-              <div key={i} className={m.role === 'user' ? 'text-blue-400 flex flex-col items-end' : 'text-foreground'}>
-                {m.role === 'user' ? (
-                  <div className="bg-blue-500/10 px-4 py-2 rounded-lg max-w-[80%] border border-blue-500/20">{m.content}</div>
-                ) : (
-                  <div className="bg-muted/30 px-4 py-2 rounded-lg max-w-[80%] border border-border whitespace-pre-wrap">{m.content}</div>
-                )}
-              </div>
-            ))}
-            {isTyping && (
-              <div className="text-muted-foreground animate-pulse">🤖 Agent is thinking and executing...</div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-          
-          <form onSubmit={handleSubmit} className="border-t border-border flex items-center px-5 py-4 gap-3 bg-muted/30">
-            <Bot className="w-5 h-5 text-muted-foreground" />
-            <input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Find me the best mechanical keyboard under ₹5000..."
-              className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none font-sans"
-              disabled={isTyping}
-            />
-            <button 
-              type="submit" 
-              disabled={isTyping}
-              className="text-xs bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white px-5 py-2 rounded-lg transition-colors font-medium shadow-sm"
-            >
-              Send Command
-            </button>
-          </form>
+          <h2 className="text-xl font-bold mb-2 text-foreground">Ready to Dispatch your Agent?</h2>
+          <p className="text-muted-foreground max-w-md mb-6">
+            The AI Agent has been upgraded to a dedicated full-screen Hub with chat history, enabling complex autonomous workflows and multi-session tracking.
+          </p>
+          <Link 
+            to="/buyer/agent"
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+          >
+            Open AI Agent Hub <ArrowRight className="w-4 h-4" />
+          </Link>
         </div>
       </div>
     </DashboardLayout>
