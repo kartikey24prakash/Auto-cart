@@ -11,14 +11,20 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import http from 'http';
+import morgan from 'morgan';
 
 import { connectDB } from './config/db.js';
 import webhookRoutes   from './routes/webhookRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import engineRoutes    from './routes/engineRoutes.js';
 import authRoutes      from './routes/authRoutes.js';
+import { initSocket } from './sockets/chatSocket.js';
 
 const app = express();
+const httpServer = http.createServer(app);
+
+app.use(morgan('dev'));
 
 // ── Security Headers ──────────────────────────────────────────────────────────────────────
 app.use(helmet());
@@ -66,7 +72,8 @@ app.use((err, _req, res, _next) => {
 const PORT = process.env.PORT || 5000;
 
 connectDB().then(() => {
-  app.listen(PORT, () => {
+  initSocket(httpServer);
+  httpServer.listen(PORT, () => {
     console.log(`[APP] SafeAgent Gateway running on http://localhost:${PORT}`);
     console.log(`[APP] SIMULATE_GATEWAY_FAILURE=${process.env.SIMULATE_GATEWAY_FAILURE}`);
   });

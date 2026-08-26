@@ -1,23 +1,56 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Bot, Zap, ShieldCheck, TrendingUp } from 'lucide-react';
 import { useSession } from '@/shared/state/SessionContext';
 import apiClient from '@/shared/services/apiClient';
+import { io } from 'socket.io-client';
 
 export default function BuyerCommandCenter() {
   const { user } = useSession();
   const [query, setQuery] = useState('');
-  const [messages, setMessages] = useState([
-    { from: 'system', text: '🤖 AutoCart Scout is online. Type a request to begin.' }
-  ]);
+  const [messages, setMessages] = useState([]);
+  const [isTyping, setIsTyping] = useState(false);
+  const socketRef = useRef(null);
+  const messagesEndRef = useRef(null);
   
-  // Real stats state
-  const [stats, setStats] = useState({
-    totalPurchases: 0,
-    budgetUsed: 0,
-    autoApproved: 0,
-    gated: 0
-  });
+  const [stats, setStats] = useState({ totalPurchases: 0, budgetUsed: 0, autoApproved: 0, gated: 0 });
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isTyping]);
+
+  useEffect(() => {
+    // Connect to Socket.io Server
+    socketRef.current = io('http://localhost:5000');
+    
+    // Join a unique chat session based on the user's ID
+    const sessionId = `chat_${user?.userId || 'guest'}`;
+    socketRef.current.emit('join_chat', { userId: user.userId, sessionId });
+
+    socketRef.current.on('chat_history', (history) => {
+      setMessages(history);
+    });
+
+    socketRef.current.on('receive_message', (msg) => {
+      setMessages(prev => [...prev, msg]);
+    });
+
+    socketRef.current.on('ai_typing', ({ isTyping }) => {
+      setIsTyping(isTyping);
+    });
+
+    socketRef.current.on('error', (err) => {
+      setMessages(prev => [...prev, { role: 'system', content: `❌ Error: ${err.message}` }]);
+    });
+
+    return () => {
+      socketRef.current.disconnect();
+    };
+  }, [user]);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -26,72 +59,26 @@ export default function BuyerCommandCenter() {
           apiClient.get('/api/dashboard/mandate'),
           apiClient.get('/api/dashboard/logs')
         ]);
-        
         const mandate = mandateRes.data.mandates?.[0] || { spentToday: 0 };
         const logs = logsRes.data.logs || [];
-        
         const autoApproved = logs.filter(l => l.status === 'ORDER_CREATED' || l.status === 'ORDER_PENDING_CONFIRM').length;
         const gated = logs.filter(l => l.status === 'GATED_1_CLICK' || l.status === 'GATED_2FA').length;
-        
-        setStats({
-          totalPurchases: logs.length,
-          budgetUsed: mandate.spentToday,
-          autoApproved,
-          gated
-        });
-      } catch (err) {
-        console.error('Failed to fetch buyer stats:', err);
-      }
+        setStats({ totalPurchases: logs.length, budgetUsed: mandate.spentToday, autoApproved, gated });
+      } catch (err) {}
     };
     fetchStats();
-  }, []);
+  }, [messages]); // Refresh stats when messages update (in case a purchase was made)
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!query.trim()) return;
     
-    setMessages(prev => [
-      ...prev,
-      { from: 'user', text: query },
-      { from: 'system', text: `🔍 Scanning merchant catalog for: "${query}"...` }
-    ]);
+    const sessionId = `chat_${user?.userId || 'guest'}`;
+    socketRef.current.emit('send_message', { userId: user.userId, sessionId, message: query });
     
-    let sku = 'kb-01'; 
-    let qty = 1;
-    if (query.toLowerCase().includes('monitor') || query.toLowerCase().includes('laptop')) {
-      sku = 'mon-4k';
-    }
-    
+    // Optimistically add user message
+    setMessages(prev => [...prev, { role: 'user', content: query }]);
     setQuery('');
-
-    try {
-      setMessages(prev => [...prev, { from: 'system', text: `⚡ AI found match [${sku}]. Initiating SDK transaction...` }]);
-      
-      const response = await fetch('http://localhost:4000/api/ai-store/checkout', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-buyer-key': user.buyerKey 
-        },
-        body: JSON.stringify({
-          sku,
-          qty,
-          idempotencyKey: crypto.randomUUID()
-        })
-      });
-      
-      const result = await response.json();
-      
-      if (result.status === 'GATED_2FA' || result.status === 'GATED_1_CLICK') {
-        setMessages(prev => [...prev, { from: 'system', text: `⚠️ FIREWALL TRIGGERED: Held in ${result.status} state. Please check your Approval Inbox.` }]);
-      } else if (result.status === 'PAYMENT_CAPTURED' || result.status === 'ORDER_PENDING_CONFIRM') {
-        setMessages(prev => [...prev, { from: 'system', text: `✅ AUTO-APPROVED: Secure payment processed via Razorpay.` }]);
-      } else {
-        setMessages(prev => [...prev, { from: 'system', text: `❌ BLOCKED: ${result.error || result.message || 'Transaction rejected.'}` }]);
-      }
-    } catch (err) {
-      setMessages(prev => [...prev, { from: 'system', text: `❌ ERROR: Failed to reach Merchant API.` }]);
-    }
   };
 
   const statCards = [
@@ -109,7 +96,6 @@ export default function BuyerCommandCenter() {
           <p className="text-muted-foreground text-sm mt-1">Dispatch your AI shopping agent and monitor its activity.</p>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {statCards.map(({ label, value, icon: Icon, colorClass }) => {
             const [text, bg] = colorClass.split(' ');
@@ -125,31 +111,45 @@ export default function BuyerCommandCenter() {
           })}
         </div>
 
-        {/* Terminal */}
         <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm flex flex-col">
           <div className="border-b border-border px-5 py-3 flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-red-500" />
             <div className="w-3 h-3 rounded-full bg-yellow-500" />
             <div className="w-3 h-3 rounded-full bg-green-500" />
-            <span className="ml-3 text-xs text-muted-foreground font-mono">autocart-scout — AI Shopping Terminal</span>
+            <span className="ml-3 text-xs text-muted-foreground font-mono">autocart-scout — Live AI Stream</span>
           </div>
-          <div className="flex-1 min-h-[300px] max-h-[500px] overflow-y-auto p-5 font-mono text-sm flex flex-col gap-3">
+          
+          <div className="flex-1 h-[400px] overflow-y-auto p-5 font-mono text-sm flex flex-col gap-4">
             {messages.map((m, i) => (
-              <div key={i} className={m.from === 'user' ? 'text-blue-400' : 'text-foreground'}>
-                {m.from === 'user' ? '> ' : ''}{m.text}
+              <div key={i} className={m.role === 'user' ? 'text-blue-400 flex flex-col items-end' : 'text-foreground'}>
+                {m.role === 'user' ? (
+                  <div className="bg-blue-500/10 px-4 py-2 rounded-lg max-w-[80%] border border-blue-500/20">{m.content}</div>
+                ) : (
+                  <div className="bg-muted/30 px-4 py-2 rounded-lg max-w-[80%] border border-border whitespace-pre-wrap">{m.content}</div>
+                )}
               </div>
             ))}
+            {isTyping && (
+              <div className="text-muted-foreground animate-pulse">🤖 Agent is thinking and executing...</div>
+            )}
+            <div ref={messagesEndRef} />
           </div>
-          <form onSubmit={handleSubmit} className="border-t border-border flex items-center px-5 py-3 gap-3 bg-muted/30">
-            <span className="text-blue-400 font-mono text-sm">{'>'}</span>
+          
+          <form onSubmit={handleSubmit} className="border-t border-border flex items-center px-5 py-4 gap-3 bg-muted/30">
+            <Bot className="w-5 h-5 text-muted-foreground" />
             <input
               value={query}
               onChange={e => setQuery(e.target.value)}
               placeholder="Find me the best mechanical keyboard under ₹5000..."
-              className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none font-mono"
+              className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none font-sans"
+              disabled={isTyping}
             />
-            <button type="submit" className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg transition-colors">
-              Deploy Agent
+            <button 
+              type="submit" 
+              disabled={isTyping}
+              className="text-xs bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white px-5 py-2 rounded-lg transition-colors font-medium shadow-sm"
+            >
+              Send Command
             </button>
           </form>
         </div>
