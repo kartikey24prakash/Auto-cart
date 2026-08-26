@@ -1,1 +1,1 @@
-{ "name": "agentic-commerce-monorepo", "private": true, "workspaces": ["frontend", "backend", "packages/*"] }
+{"name":"agentic-commerce-monorepo","private":true,"workspaces":["frontend","backend","packages/*"],"dependencies":{"@google/generative-ai":"^0.24.1"}}

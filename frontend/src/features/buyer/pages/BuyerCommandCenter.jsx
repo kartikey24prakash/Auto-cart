@@ -126,21 +126,21 @@ export default function BuyerCommandCenter() {
         </div>
 
         {/* Terminal */}
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm flex flex-col">
           <div className="border-b border-border px-5 py-3 flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-red-500" />
             <div className="w-3 h-3 rounded-full bg-yellow-500" />
             <div className="w-3 h-3 rounded-full bg-green-500" />
             <span className="ml-3 text-xs text-muted-foreground font-mono">autocart-scout — AI Shopping Terminal</span>
           </div>
-          <div className="h-64 overflow-y-auto p-5 font-mono text-sm flex flex-col gap-3">
+          <div className="flex-1 min-h-[300px] max-h-[500px] overflow-y-auto p-5 font-mono text-sm flex flex-col gap-3">
             {messages.map((m, i) => (
               <div key={i} className={m.from === 'user' ? 'text-blue-400' : 'text-foreground'}>
                 {m.from === 'user' ? '> ' : ''}{m.text}
               </div>
             ))}
           </div>
-          <form onSubmit={handleSubmit} className="border-t border-border flex items-center px-5 py-3 gap-3">
+          <form onSubmit={handleSubmit} className="border-t border-border flex items-center px-5 py-3 gap-3 bg-muted/30">
             <span className="text-blue-400 font-mono text-sm">{'>'}</span>
             <input
               value={query}
@@ -149,7 +149,7 @@ export default function BuyerCommandCenter() {
               className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none font-mono"
             />
             <button type="submit" className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg transition-colors">
-              Run
+              Deploy Agent
             </button>
           </form>
         </div>

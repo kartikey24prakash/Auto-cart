@@ -72,6 +72,35 @@ export default function MerchantKeys() {
             ))}
           </div>
         </Card>
+
+        <Card className="p-8 bg-card border-border/50 shadow-sm mt-8">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500">
+              <Key className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold text-foreground">Payout Settings</h2>
+              <p className="text-sm text-muted-foreground">Configure your Razorpay Linked Account ID to receive automated 98% split payments.</p>
+            </div>
+          </div>
+
+          <div className="space-y-4 max-w-2xl">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground">Razorpay Linked Account ID</label>
+              <input 
+                type="text" 
+                placeholder="acc_..." 
+                className="w-full bg-background border border-border/60 rounded-lg p-2.5 shadow-sm text-foreground focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 outline-none transition-all"
+              />
+              <p className="text-xs text-muted-foreground pt-1">
+                This account will automatically receive 98% of the transaction amount directly via Razorpay Route.
+              </p>
+            </div>
+            <button className="px-4 py-2 bg-foreground text-background font-medium rounded-lg text-sm hover:bg-foreground/90 transition-colors">
+              Save Payout Routing
+            </button>
+          </div>
+        </Card>
       </div>
     </DashboardLayout>
   );
