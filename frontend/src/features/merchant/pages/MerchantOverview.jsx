@@ -1,15 +1,48 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { TrendingUp, ShieldCheck, Zap, Activity } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import apiClient from '@/shared/services/apiClient';
 
 export default function MerchantOverview() {
-  const stats = [
-    { label: 'Approved Today', value: '127', color: 'text-emerald-400', icon: ShieldCheck },
-    { label: 'Gated (Waiting)', value: '4', color: 'text-yellow-400', icon: Zap },
-    { label: 'Blocked', value: '2', color: 'text-red-400', icon: Activity },
-    { label: 'Revenue Protected', value: '₹42,000', color: 'text-blue-400', icon: TrendingUp },
+  const [stats, setStats] = useState({
+    approvedToday: 0,
+    gatedWaiting: 0,
+    blocked: 0,
+    revenueProtected: 0
+  });
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        const res = await apiClient.get('/api/dashboard/metrics');
+        const data = res.data;
+        
+        // Sum up the real stats
+        const counts = data.statusCounts || {};
+        const approved = (counts['ORDER_CREATED'] || 0) + (counts['PAYMENT_CAPTURED'] || 0) + (counts['AUTO_APPROVED'] || 0);
+        const gated = (counts['GATED_1_CLICK'] || 0) + (counts['GATED_2FA'] || 0);
+        const blocked = (counts['BLOCKED'] || 0) + (counts['DENIED'] || 0);
+        
+        setStats({
+          approvedToday: approved,
+          gatedWaiting: gated,
+          blocked: blocked,
+          // Placeholder formatting logic - assumes AI Assisted AOV translates to protected amount roughly
+          revenueProtected: parseFloat(data.aov?.aiAssistedINR || 0)
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchMetrics();
+  }, []);
+
+  const statCards = [
+    { label: 'Approved & Captured', value: stats.approvedToday.toString(), color: 'text-emerald-400', icon: ShieldCheck },
+    { label: 'Gated (Waiting)', value: stats.gatedWaiting.toString(), color: 'text-yellow-400', icon: Zap },
+    { label: 'Blocked / Denied', value: stats.blocked.toString(), color: 'text-red-400', icon: Activity },
+    { label: 'AI Assisted Sales', value: `₹${stats.revenueProtected.toLocaleString()}`, color: 'text-blue-400', icon: TrendingUp },
   ];
 
   return (
@@ -17,11 +50,11 @@ export default function MerchantOverview() {
       <div className="max-w-6xl mx-auto space-y-8">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Overview</h1>
-          <p className="text-muted-foreground mt-1">High-level metrics of your AI traffic and revenue protection.</p>
+          <p className="text-muted-foreground mt-1">Real-time metrics of your autonomous traffic and transaction outcomes.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {stats.map(({ label, value, color, icon: Icon }) => (
+          {statCards.map(({ label, value, color, icon: Icon }) => (
             <Card key={label} className="p-6 bg-card border-border/50 shadow-sm hover:border-border transition-colors">
               <div className="flex justify-between items-start">
                 <div className="space-y-2">
@@ -38,10 +71,11 @@ export default function MerchantOverview() {
 
         <div className="grid lg:grid-cols-2 gap-6">
           <Card className="p-6 bg-card border-border/50">
-            <h3 className="text-lg font-semibold mb-4 text-foreground">Recent Traffic</h3>
-            <div className="h-64 flex flex-col items-center justify-center border border-dashed border-border/50 rounded-lg bg-background/30 text-muted-foreground">
-              <Activity className="w-8 h-8 mb-2 opacity-50" />
-              <p>Connect your SDK to see live traffic charts.</p>
+            <h3 className="text-lg font-semibold mb-4 text-foreground">Next Steps</h3>
+            <div className="h-64 flex flex-col items-center justify-center border border-dashed border-border/50 rounded-lg bg-background/30 text-muted-foreground p-6 text-center">
+              <Activity className="w-8 h-8 mb-4 opacity-50 text-blue-400" />
+              <h4 className="text-foreground font-medium mb-2">Connect Your Data</h4>
+              <p className="text-sm">Install the AutoCart SDK on your external backend to enable real-time price verification and cryptographic signature generation.</p>
             </div>
           </Card>
           <Card className="p-6 bg-card border-border/50">
@@ -56,7 +90,7 @@ const gateway = new AutoCartGateway({
   merchantSecret: process.env.MERCHANT_SECRET
 });
 
-app.use('/api/ai-store', gateway.createRouter());`}
+app.use('/autocart', gateway.createRouter());`}
             </pre>
           </Card>
         </div>

@@ -1,12 +1,48 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { ShieldAlert, Sliders } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import apiClient from '@/shared/services/apiClient';
 
 export default function MerchantFirewall() {
-  const [autoApprove, setAutoApprove] = React.useState(500);
-  const [require2FA, setRequire2FA] = React.useState(5000);
+  const [autoApprove, setAutoApprove] = useState(500);
+  const [require2FA, setRequire2FA] = useState(5000);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    apiClient.get('/api/dashboard/config').then(res => {
+      const rules = res.data.config.firewallRules;
+      if (rules) {
+        setAutoApprove(rules.autoApproveUnder || 500);
+        setRequire2FA(rules.require2FAOver || 5000);
+      }
+      setLoading(false);
+    }).catch(err => {
+      console.error(err);
+      setLoading(false);
+    });
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await apiClient.put('/api/dashboard/config', {
+        firewallRules: {
+          autoApproveUnder: Number(autoApprove),
+          require2FAOver: Number(require2FA)
+        }
+      });
+      alert('Firewall Rules Saved!');
+    } catch (err) {
+      alert('Failed to save.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <DashboardLayout role="merchant"><div className="p-8">Loading rules...</div></DashboardLayout>;
 
   return (
     <DashboardLayout role="merchant">
@@ -63,7 +99,9 @@ export default function MerchantFirewall() {
             </div>
 
             <div className="pt-4 flex justify-end">
-              <Button className="bg-blue-600 hover:bg-blue-500 text-white px-8">Save Changes</Button>
+              <Button onClick={handleSave} disabled={saving} className="bg-blue-600 hover:bg-blue-500 text-white px-8">
+                {saving ? 'Saving...' : 'Save Changes'}
+              </Button>
             </div>
           </div>
         </Card>

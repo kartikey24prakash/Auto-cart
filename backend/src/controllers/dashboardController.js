@@ -299,11 +299,12 @@ export const getMerchantConfig = async (req, res, next) => {
 export const updateMerchantConfig = async (req, res, next) => {
   try {
     if (req.user.role.toUpperCase() !== 'MERCHANT') return res.status(403).json({ error: 'Only merchants can update config' });
-    const { storefrontUrl, linkedAccountId } = req.body;
+    const { storefrontUrl, linkedAccountId, firewallRules } = req.body;
     const user = await import('../models/User.js').then(m => m.User.findOne({ userId: req.user.userId }));
     if (!user.merchantConfig) user.merchantConfig = {};
     if (storefrontUrl !== undefined) user.merchantConfig.storefrontUrl = storefrontUrl;
     if (linkedAccountId !== undefined) user.merchantConfig.linkedAccountId = linkedAccountId;
+    if (firewallRules !== undefined) user.merchantConfig.firewallRules = firewallRules;
     await user.save();
     res.json({ success: true, config: user.merchantConfig });
   } catch (err) {
