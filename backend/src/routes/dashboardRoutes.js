@@ -1,7 +1,7 @@
 // src/routes/dashboardRoutes.js
 import { Router } from 'express';
 import { jwtMiddleware } from '../middleware/jwtMiddleware.js';
-import { getLogs, getMetrics, getMandate, updateMandate, getShipping, updateShipping, getCatalog } from '../controllers/dashboardController.js';
+import { getLogs, getMetrics, getMandate, updateMandate, getShipping, updateShipping, getCatalog, getMerchantConfig, updateMerchantConfig } from '../controllers/dashboardController.js';
 
 const router = Router();
 
@@ -26,5 +26,9 @@ router.put('/shipping', updateShipping);
 
 // GET /api/dashboard/catalog — Fetch merchant products
 router.get('/catalog', getCatalog);
+
+// GET & PUT /api/dashboard/config — Merchant settings
+router.get('/config', getMerchantConfig);
+router.put('/config', updateMerchantConfig);
 
 export default router;

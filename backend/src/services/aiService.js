@@ -145,6 +145,31 @@ export class AiService {
     const merchant = await User.findOne({ userId: merchantId, role: 'MERCHANT' });
     if (!merchant) return JSON.stringify({ error: 'Merchant not found' });
 
+    // OPTION A: If the merchant has an external storefront URL (like our mock-storefront),
+    // route the checkout intent directly to THEIR server so they can verify price and sign it!
+    const storefrontUrl = merchant.merchantConfig.storefrontUrl;
+    
+    if (storefrontUrl) {
+      try {
+        console.log(`[Buyer AI] Routing checkout to external storefront: ${storefrontUrl}`);
+        const res = await fetch(storefrontUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-buyer-key': buyerKey },
+          body: JSON.stringify({
+            sku,
+            qty,
+            idempotencyKey: crypto.randomUUID(),
+            maxAuthorizedAmount: 5000
+          })
+        });
+        const data = await res.json();
+        return JSON.stringify(data);
+      } catch (err) {
+        return JSON.stringify({ error: `External Storefront Error: ${err.message}` });
+      }
+    }
+
+    // LEGACY FALLBACK: If they don't have a storefront URL, the Gateway signs it on their behalf (Internal checkout)
     const payload = {
       merchantKey: merchant.merchantConfig.merchantKey,
       buyerKey: buyerKey,

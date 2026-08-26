@@ -31,10 +31,16 @@ export const getLogs = async (req, res, next) => {
       AuditLog.countDocuments(filter)
     ]);
     
+    // Fetch products to get real names
+    const { Product } = await import('../models/Product.js');
+    const skus = [...new Set(logs.map(l => l.sku))];
+    const products = await Product.find({ sku: { $in: skus } }).lean();
+    const productMap = products.reduce((acc, p) => ({ ...acc, [p.sku]: p.name }), {});
+
     // Format for frontend
     const formattedLogs = logs.map(l => ({
       ...l,
-      details: { title: l.sku === 'mon-4k' ? '27-inch 4K Monitor' : 'Ergonomic Mechanical Keyboard' }
+      details: { title: productMap[l.sku] || l.sku }
     }));
 
     return res.json({
@@ -253,6 +259,53 @@ export const getCatalog = async (req, res, next) => {
     const { Product } = await import('../models/Product.js');
     const products = await Product.find({ merchantId: req.user.userId }).sort({ createdAt: -1 });
     res.json({ products });
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+export const syncCatalog = async (req, res, next) => {
+  try {
+    if (req.userRole !== 'MERCHANT') return res.status(403).json({ error: 'Only merchants can sync catalog' });
+    const { products } = req.body;
+    const { Product } = await import('../models/Product.js');
+    // Bulk insert or update
+    const ops = products.map(p => ({
+      updateOne: {
+        filter: { sku: p.sku, merchantId: req.user.userId },
+        update: { $set: { name: p.name, price: p.price, stock: p.stock, category: p.category || 'General' } },
+        upsert: true
+      }
+    }));
+    await Product.bulkWrite(ops);
+    res.json({ success: true, message: 'Catalog synced successfully' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+export const getMerchantConfig = async (req, res, next) => {
+  try {
+    if (req.user.role.toUpperCase() !== 'MERCHANT') return res.status(403).json({ error: 'Only merchants have merchant config' });
+    const user = await import('../models/User.js').then(m => m.User.findOne({ userId: req.user.userId }));
+    res.json({ config: user.merchantConfig || {} });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateMerchantConfig = async (req, res, next) => {
+  try {
+    if (req.user.role.toUpperCase() !== 'MERCHANT') return res.status(403).json({ error: 'Only merchants can update config' });
+    const { storefrontUrl, linkedAccountId } = req.body;
+    const user = await import('../models/User.js').then(m => m.User.findOne({ userId: req.user.userId }));
+    if (!user.merchantConfig) user.merchantConfig = {};
+    if (storefrontUrl !== undefined) user.merchantConfig.storefrontUrl = storefrontUrl;
+    if (linkedAccountId !== undefined) user.merchantConfig.linkedAccountId = linkedAccountId;
+    await user.save();
+    res.json({ success: true, config: user.merchantConfig });
   } catch (err) {
     next(err);
   }

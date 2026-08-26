@@ -15,12 +15,15 @@ const verifySignature = (payload, signature, secret) => {
 
 // Helper to create Razorpay Order
 const createRazorpayOrder = async (merchant, amount, receiptId) => {
-  if (!merchant.merchantConfig.razorpayKeyId || !merchant.merchantConfig.razorpayKeySecret) {
-    throw new Error('Merchant Razorpay keys not configured');
+  const rzpKeyId = merchant.merchantConfig?.razorpayKeyId || process.env.RAZORPAY_KEY_ID;
+  const rzpKeySecret = merchant.merchantConfig?.razorpayKeySecret || process.env.RAZORPAY_KEY_SECRET;
+  
+  if (!rzpKeyId || !rzpKeySecret) {
+    throw new Error('Merchant Razorpay keys not configured and platform fallback missing');
   }
   const rzp = new Razorpay({
-    key_id: merchant.merchantConfig.razorpayKeyId,
-    key_secret: merchant.merchantConfig.razorpayKeySecret
+    key_id: rzpKeyId,
+    key_secret: rzpKeySecret
   });
 
   const amountPaise = Math.round(amount * 100);
@@ -159,7 +162,8 @@ export const approveTransaction = async (req, res) => {
     log.razorpayOrderId = order.id;
     await log.save();
     
-    res.json({ success: true, status: 'ORDER_CREATED', razorpayOrderId: order.id, amount: log.amount, keyId: merchant.merchantConfig.razorpayKeyId });
+    const rzpKeyId = merchant.merchantConfig?.razorpayKeyId || process.env.RAZORPAY_KEY_ID;
+    res.json({ success: true, status: 'ORDER_CREATED', razorpayOrderId: order.id, amount: log.amount, keyId: rzpKeyId });
   } catch (error) {
     console.error('[Approve] Error:', error);
     res.status(500).json({ error: 'Approval failed' });
