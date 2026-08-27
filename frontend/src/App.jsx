@@ -6,11 +6,11 @@ import { SessionProvider, useSession } from './shared/state/SessionContext';
 import LandingPage from './features/landing/pages/LandingPage';
 import BuyerCommandCenter from './features/buyer/pages/BuyerCommandCenter';
 import BuyerAgent from './features/buyer/pages/BuyerAgent';
+import BuyerSettings from './features/buyer/pages/BuyerSettings';
 
 import AuthPage from './features/auth/pages/AuthPage';
 import ApprovalQueuePage from './features/approval-queue/pages/ApprovalQueuePage';
 import AuditTerminalPage from './features/audit-terminal/pages/AuditTerminalPage';
-import MandatePage from './features/policy-mandates/pages/MandatePage';
 
 import MerchantOverview from './features/merchant/pages/MerchantOverview';
 import MerchantFirewall from './features/merchant/pages/MerchantFirewall';
@@ -46,7 +46,7 @@ function AppRoutes() {
       <Route path="/buyer/agent" element={<ProtectedRoute allowedRole="buyer"><BuyerAgent /></ProtectedRoute>} />
       <Route path="/buyer/approvals" element={<ProtectedRoute allowedRole="buyer"><ApprovalQueuePage /></ProtectedRoute>} />
       <Route path="/buyer/receipts" element={<ProtectedRoute allowedRole="buyer"><AuditTerminalPage /></ProtectedRoute>} />
-      <Route path="/buyer/settings" element={<ProtectedRoute allowedRole="buyer"><MandatePage /></ProtectedRoute>} />
+      <Route path="/buyer/settings" element={<ProtectedRoute allowedRole="buyer"><BuyerSettings /></ProtectedRoute>} />
 
       {/* Merchant Shield (Protected) */}
       <Route path="/merchant" element={<ProtectedRoute allowedRole="merchant"><MerchantOverview /></ProtectedRoute>} />
