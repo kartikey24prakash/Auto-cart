@@ -9,6 +9,8 @@ import { TextRoll } from "@/components/ui/skiper-ui/skiper58";
 import { Skiper89 } from "@/components/ui/skiper-ui/skiper89";
 import { Skiper19 } from "@/components/ui/skiper-ui/skiper19";
 import { Skiper37 } from "@/components/ui/skiper-ui/skiper37";
+import { DevToolSection } from "@/components/ui/dev-tool-landing-page";
+import { EnterpriseAIPipeline } from "@/components/ui/ai-agent-pipeline";
 
 export default function LandingPage() {
   const featuresRef = useRef(null);
@@ -114,7 +116,7 @@ export default function LandingPage() {
       </div>
 
       {/* Stats Section with Animated Numbers */}
-      <div className="relative z-30 w-full py-24">
+      <div className="relative z-30 w-full py-24 bg-zinc-950 border-t border-b border-zinc-900 shadow-2xl">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-16 md:gap-8 text-center">
           <div className="flex flex-col items-center justify-center space-y-3">
             <h3 className="text-6xl font-bold tracking-tighter font-mono flex items-center">
@@ -137,6 +139,11 @@ export default function LandingPage() {
         </div>
       </div>
 
+      {/* Developer Integration Section */}
+      <div className="relative w-full z-30 bg-zinc-950">
+         <DevToolSection />
+      </div>
+
       {/* Features Section with Scroll Architecture */}
       <div ref={featuresRef} className="relative w-full py-40 min-h-[250vh]">
         {/* SVG Scroll Path - positioned to start just behind the title */}
@@ -144,9 +151,9 @@ export default function LandingPage() {
           <Skiper19 scrollYProgress={scrollYProgress} className="w-full h-full object-cover" />
         </div>
         
-        <div className="relative z-10 max-w-6xl mx-auto px-6 h-full flex flex-col gap-[30vh]">
+        <div className="relative z-10 max-w-6xl mx-auto px-6 h-full flex flex-col gap-[20vh]">
           
-          <div className="text-center max-w-3xl mx-auto mb-[10vh]">
+          <div className="text-center max-w-3xl mx-auto mb-[5vh]">
             <h2 className="text-5xl md:text-7xl font-bold tracking-tighter mb-6">
               The Agentic Supply Chain
             </h2>
@@ -238,6 +245,19 @@ export default function LandingPage() {
         </div>
       </div>
       
+      {/* Visual Pipeline Section at Bottom */}
+      <div className="relative w-full py-20 bg-zinc-950 border-t border-zinc-900 z-30">
+        <div className="max-w-6xl mx-auto px-6 text-center mb-12">
+           <h2 className="text-3xl md:text-5xl font-bold tracking-tighter text-white mb-4">
+              Real-Time Execution
+           </h2>
+           <p className="text-zinc-400">Watch the Auto-Cart network orchestrate trust in milliseconds.</p>
+        </div>
+        <div className="flex justify-center w-full px-4">
+          <EnterpriseAIPipeline />
+        </div>
+      </div>
+
       {/* Footer */}
       <footer className="border-t border-zinc-900 py-12 text-center bg-zinc-950 relative z-30">
         <p className="text-zinc-500 font-mono text-sm tracking-widest uppercase">© 2026 AutoCart Protocol</p>
