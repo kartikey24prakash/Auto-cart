@@ -12,7 +12,8 @@ const MERCHANT_SECRET = 'sec_c85c533d2ab04a0f9baacc05ae3b373f';
 const SNITCH_DB = [
     { sku: 'snitch2-black-tee', name: 'Snitch Black Oversized T-Shirt', price: 999, stock: 50, category: 'Apparel' },
     { sku: 'snitch2-denim-jeans', name: 'Snitch Baggy Denim Jeans', price: 1499, stock: 20, category: 'Apparel' },
-    { sku: 'snitch2-jacket-01', name: 'Snitch Leather Bomber Jacket', price: 2999, stock: 10, category: 'Apparel' }
+    { sku: 'snitch2-jacket-01', name: 'Snitch Leather Bomber Jacket', price: 2999, stock: 10, category: 'Apparel' },
+    { sku: 'snitch2-socks-01', name: 'Snitch Ankle Socks (Pack of 3)', price: 399, stock: 100, category: 'Accessories' }
 ];
 
 // 1. Initialize the SDK

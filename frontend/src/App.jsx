@@ -18,6 +18,7 @@ import MerchantTraffic from './features/merchant/pages/MerchantTraffic';
 import MerchantKeys from './features/merchant/pages/MerchantKeys';
 import MerchantAgent from './features/merchant/pages/MerchantAgent';
 import MerchantCatalog from './features/merchant/pages/MerchantCatalog';
+import DocsPage from './features/docs/pages/DocsPage';
 
 // Route Guard
 const ProtectedRoute = ({ children, allowedRole }) => {
@@ -40,6 +41,7 @@ function AppRoutes() {
       {/* Public */}
       <Route path="/" element={<LandingPage />} />
       <Route path="/auth" element={<AuthPage />} />
+      <Route path="/docs" element={<DocsPage />} />
 
       {/* Buyer Hub (Protected) */}
       <Route path="/buyer" element={<ProtectedRoute allowedRole="buyer"><BuyerCommandCenter /></ProtectedRoute>} />

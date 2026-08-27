@@ -59,9 +59,9 @@ export default function LandingPage() {
             <Link to="/auth?role=merchant" className="hover:text-zinc-50 transition-colors">
               <TextRoll center>Merchant SDK</TextRoll>
             </Link>
-            <a href="#" className="hover:text-zinc-50 transition-colors">
+            <Link to="/docs" className="hover:text-zinc-50 transition-colors">
               <TextRoll center>Documentation</TextRoll>
-            </a>
+            </Link>
           </div>
 
           <div>

@@ -24,10 +24,11 @@ const buyerGroups = [
 
 const merchantGroups = [
   {
+    heading: '',
     items: [
       { id: 'search', title: 'Search', icon: Search, shortcut: '⌘K' },
       { id: '/merchant', title: 'Overview', icon: LayoutDashboard },
-      { id: '/merchant/agent', title: 'Approval Inbox', icon: Inbox, badge: 3 },
+      { id: '/merchant/agent', title: 'AI Agent', icon: Bot },
       { id: '/merchant/traffic', title: 'AI Traffic', icon: Activity },
     ]
   },
@@ -177,8 +178,8 @@ function NavItem({ item, activeId, onSelect, level = 0 }) {
   );
 }
 
-function SidebarNav({ role, activeId, onSelect, activeWorkspace, onWorkspaceSelect, onLogout, dynamicBuyerGroups }) {
-  const groups = role === 'buyer' ? dynamicBuyerGroups : merchantGroups;
+function SidebarNav({ role, activeId, onSelect, activeWorkspace, onWorkspaceSelect, onLogout, dynamicBuyerGroups, dynamicMerchantGroups }) {
+  const groups = role === 'buyer' ? dynamicBuyerGroups : dynamicMerchantGroups;
 
   return (
     <div className={`flex flex-col w-[260px] h-full bg-card/50 border-r border-border/50 p-3 font-sans`}>
@@ -237,41 +238,38 @@ export default function DashboardLayout({ children, role = 'buyer' }) {
   const [activeWorkspace, setActiveWorkspace] = useState(role === 'buyer' ? 'Personal Account' : 'Acme Corp');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [dynamicBuyerGroups, setDynamicBuyerGroups] = useState(buyerGroups);
+  const [dynamicMerchantGroups, setDynamicMerchantGroups] = useState(merchantGroups);
 
-  // Fetch chats for the AI Agent dropdown
+  // Fetch chats for the AI Agent dropdown (Both Buyer and Merchant)
   useEffect(() => {
-    if (role === 'buyer') {
-      import('@/shared/services/apiClient').then(m => {
-        m.default.get('/api/chat').then(res => {
-          if (res.data && res.data.chats) {
-            const chats = res.data.chats.map(chat => ({
-              id: `/buyer/agent?chatId=${chat._id}`,
-              title: chat.title || 'New Chat',
-              icon: Hash
-            }));
-            
-            // Inject into the AI Agent item
-            setDynamicBuyerGroups(prev => {
-              const newGroups = prev.map(group => ({
-                ...group,
-                items: group.items.map(item => {
-                  if (item.title === 'AI Agent') {
-                    return {
-                      ...item,
-                      id: '/buyer/agent',
-                      children: chats.length > 0 ? chats : [{ id: '/buyer/agent', title: 'New Chat', icon: Hash }]
-                    };
-                  }
-                  return item;
-                })
-              }));
-              return newGroups;
-            });
+    import('@/shared/services/apiClient').then(m => {
+      m.default.get('/api/chat').then(res => {
+        if (res.data && res.data.chats) {
+          const chats = res.data.chats.map(chat => ({
+            id: `/${role}/agent?chatId=${chat._id}`,
+            title: chat.title || 'New Chat',
+            icon: Hash
+          }));
+          
+          const newChildren = chats.length > 0 ? chats : [{ id: `/${role}/agent`, title: 'New Chat', icon: Hash }];
+
+          if (role === 'buyer') {
+            setDynamicBuyerGroups(prev => prev.map(group => ({
+              ...group,
+              items: group.items.map(item => item.title === 'AI Agent' ? { ...item, id: '/buyer/agent', children: newChildren } : item)
+            })));
+          } else {
+            setDynamicMerchantGroups(prev => prev.map(group => ({
+              ...group,
+              items: group.items.map(item => item.title === 'AI Agent' ? { ...item, id: '/merchant/agent', children: newChildren } : item)
+            })));
           }
-        }).catch(err => console.error(err));
-      });
-    }
+        }
+      }).catch(console.error);
+    });
   }, [role]);
+
+  const groups = role === 'buyer' ? dynamicBuyerGroups : dynamicMerchantGroups;
 
   // Close search with ESC
   useEffect(() => {
@@ -314,6 +312,7 @@ export default function DashboardLayout({ children, role = 'buyer' }) {
           role={role}
           activeId={location.pathname + location.search}
           dynamicBuyerGroups={dynamicBuyerGroups}
+          dynamicMerchantGroups={dynamicMerchantGroups}
           onSelect={handleSelect}
           activeWorkspace={activeWorkspace}
           onWorkspaceSelect={setActiveWorkspace}

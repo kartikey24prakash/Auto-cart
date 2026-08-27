@@ -2,3 +2,5 @@ DECISION.md
 SAFEAGENT_FINAL_MASTER_SPEC.md
 node_modules
 .env
+audit.report.md
+flow_audit.md

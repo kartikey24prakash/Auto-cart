@@ -21,9 +21,13 @@ import engineRoutes    from './routes/engineRoutes.js';
 import authRoutes      from './routes/authRoutes.js';
 import chatRoutes      from './routes/chatRoutes.js';
 import { initSocket } from './sockets/chatSocket.js';
+import { startReconciliationJob } from './jobs/reconciliationJob.js';
 
 const app = express();
 const httpServer = http.createServer(app);
+
+// Start background workers
+startReconciliationJob();
 
 app.use(morgan('dev'));
 

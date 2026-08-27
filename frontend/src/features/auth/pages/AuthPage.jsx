@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -34,7 +34,14 @@ export default function AuthPage() {
   
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { login } = useSession();
+  const { login, user } = useSession();
+
+  // If already logged in, redirect them immediately!
+  useEffect(() => {
+    if (user) {
+      navigate(user.role === 'buyer' ? '/buyer' : '/merchant', { replace: true });
+    }
+  }, [user, navigate]);
 
   useEffect(() => {
     const requestedRole = searchParams.get('role');
@@ -91,8 +98,11 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="flex min-h-svh w-full items-center justify-center bg-background p-6">
-      <div className="w-full max-w-3xl">
+    <div className="flex min-h-svh w-full items-center justify-center bg-background p-6 relative">
+      <Link to="/" className="absolute top-8 left-8 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2">
+        <ArrowRight className="w-4 h-4 rotate-180" /> Back to Home
+      </Link>
+      <div className="w-full max-w-3xl mt-12 md:mt-0">
         <Card className="grid w-full gap-0 p-0 md:grid-cols-2 overflow-hidden shadow-2xl border-border">
           {/* Branded Left Panel */}
           <div className="from-blue-600 to-indigo-900 text-white relative hidden flex-col justify-between overflow-hidden bg-gradient-to-b p-10 md:flex">

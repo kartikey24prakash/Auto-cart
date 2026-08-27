@@ -237,16 +237,46 @@ export const getShipping = async (req, res, next) => {
 export const updateShipping = async (req, res, next) => {
   try {
     if (req.user.role.toUpperCase() !== 'BUYER') return res.status(403).json({ error: 'Only buyers can manage shipping profiles' });
-    const { addressLine1, city, state, postalCode, country } = req.body;
-    if (!addressLine1 || !city || !state || !postalCode || !country) {
-      return res.status(400).json({ error: 'All address fields are required' });
-    }
+    
+    // Front-end sends: { fullName, addressLine1, city, state, pincode, phone }
+    const { fullName, addressLine1, city, state, pincode, phone, postalCode, country } = req.body;
+    
+    // Support both pincode (from new UI) and postalCode (legacy)
+    const finalPostalCode = pincode || postalCode;
+    const finalCountry = country || 'India';
+    
     const user = await User.findOne({ userId: req.user.userId, role: 'BUYER' });
     if (!user) return res.status(404).json({ error: 'Buyer not found' });
     
-    user.buyerConfig.shippingProfiles = [{ addressLine1, city, state, postalCode, country }];
+    user.buyerConfig.shippingProfiles = [{ 
+      fullName, 
+      phone, 
+      addressLine1, 
+      city, 
+      state, 
+      postalCode: finalPostalCode, 
+      country: finalCountry 
+    }];
     await user.save();
     res.json({ success: true, shippingProfiles: user.buyerConfig.shippingProfiles });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const linkPaymentMethod = async (req, res, next) => {
+  try {
+    if (req.user.role.toUpperCase() !== 'BUYER') return res.status(403).json({ error: 'Only buyers can link payment methods' });
+    
+    const user = await User.findOne({ userId: req.user.userId, role: 'BUYER' });
+    if (!user) return res.status(404).json({ error: 'Buyer not found' });
+    
+    // Simulate Razorpay Token Generation
+    user.buyerConfig.paymentToken = `token_rzp_${Math.random().toString(36).substring(2, 10)}`;
+    user.buyerConfig.isPaymentLinked = true;
+    await user.save();
+    
+    res.json({ success: true, isPaymentLinked: true });
   } catch (err) {
     next(err);
   }

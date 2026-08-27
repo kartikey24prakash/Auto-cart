@@ -3,6 +3,7 @@ import Razorpay from 'razorpay';
 import { User } from '../models/User.js';
 import { AuditLog } from '../models/AuditLog.js';
 import { v4 as uuidv4 } from 'uuid';
+import { sendApprovalMessage } from '../services/whatsappService.js';
 
 // Helper to verify the HMAC signature from the SDK
 const verifySignature = (payload, signature, secret) => {
@@ -100,10 +101,15 @@ const createRazorpayOrder = async (merchant, amount, receiptId) => {
       const log = await AuditLog.create({
         auditId: `aud_${uuidv4()}`,
         buyerId: buyer.userId, merchantId: merchant.userId, sku, qty, amount: lineTotal,
-        status: 'BLOCKED', blockReason: 'daily_limit_exceeded',
+        status: 'GATED_1_CLICK', blockReason: 'daily_limit_exceeded',
         idempotencyKey, sdkSignature: signature, shippingAddress: defaultShipping
       });
-      return res.json({ status: 'BLOCKED', auditId: log.auditId });
+      
+      // FIRE OUT-OF-BAND APPROVAL (WhatsApp)
+      const phone = buyer.buyerConfig.shippingProfiles?.[0]?.phone || '919876543210';
+      await sendApprovalMessage(phone, log.auditId, lineTotal, sku);
+
+      return res.json({ status: 'GATED_1_CLICK', auditId: log.auditId });
     }
 
     // 5. Evaluate Policy: Merchant Risk Tiers
@@ -122,6 +128,31 @@ const createRazorpayOrder = async (merchant, amount, receiptId) => {
       try {
         const order = await createRazorpayOrder(merchant, lineTotal, auditId);
         razorpayOrderId = order.id;
+
+        // Auto-Charge via Razorpay Token!
+        if (buyer.buyerConfig.isPaymentLinked && buyer.buyerConfig.paymentToken) {
+          console.log(`[Auto-Billing] Charging Token ${buyer.buyerConfig.paymentToken} for ₹${lineTotal}...`);
+          // Note: In production we would call Razorpay.payments.create({ amount, currency, customer_id, token_id, ... })
+          // We simulate successful capture:
+          
+          buyer.buyerConfig.spentToday += lineTotal;
+          await buyer.save();
+
+          const log = await AuditLog.create({
+            auditId, buyerId: buyer.userId, merchantId: merchant.userId, sku, qty, amount: lineTotal,
+            status: 'PAYMENT_CAPTURED',
+            idempotencyKey, sdkSignature: signature, shippingAddress: defaultShipping,
+            razorpayOrderId,
+            privacyReceipt: {
+              timestamp: new Date().toISOString(),
+              merchantName: merchant.email,
+              total: lineTotal,
+              gateway: 'Razorpay Token Auto-Billing'
+            }
+          });
+
+          return res.json({ status: 'PAYMENT_CAPTURED', auditId: log.auditId, razorpayOrderId });
+        }
       } catch (err) {
         console.error('Razorpay Error:', err);
         return res.status(500).json({ error: 'Failed to create Razorpay order' });

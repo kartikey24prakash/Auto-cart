@@ -1,7 +1,7 @@
 // src/routes/dashboardRoutes.js
 import { Router } from 'express';
 import { jwtMiddleware } from '../middleware/jwtMiddleware.js';
-import { getLogs, getMetrics, getMandate, updateMandate, getShipping, updateShipping, getCatalog, getMerchantConfig, updateMerchantConfig } from '../controllers/dashboardController.js';
+import { getLogs, getMetrics, getMandate, updateMandate, getShipping, updateShipping, linkPaymentMethod, getCatalog, getMerchantConfig, updateMerchantConfig } from '../controllers/dashboardController.js';
 
 const router = Router();
 
@@ -23,6 +23,9 @@ router.put('/mandate', updateMandate);
 // GET & PUT /api/dashboard/shipping — Manage buyer shipping profiles
 router.get('/shipping', getShipping);
 router.put('/shipping', updateShipping);
+
+// POST /api/dashboard/payment/link - Tokenize card
+router.post('/payment/link', linkPaymentMethod);
 
 // GET /api/dashboard/catalog — Fetch merchant products
 router.get('/catalog', getCatalog);

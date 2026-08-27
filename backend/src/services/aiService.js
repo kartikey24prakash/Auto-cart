@@ -1,4 +1,4 @@
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { ChatMistralAI } from "@langchain/mistralai";
 import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
 import { tool } from "@langchain/core/tools";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
@@ -7,20 +7,42 @@ import crypto from "crypto";
 import { Product } from "../models/Product.js";
 import { User } from "../models/User.js";
 
-const geminiModel = new ChatGoogleGenerativeAI({
-    model: "gemini-3.6-flash",
-    apiKey: process.env.GEMINI_API_KEY
+const mistralModel = new ChatMistralAI({
+    model: "mistral-small-latest",
+    apiKey: process.env.MISTRAL_API_KEY
 });
 
 const searchCatalogTool = tool(
     async ({ query }) => {
         try {
-            const products = await Product.find({ $text: { $search: query } }).limit(5).lean();
-            if (products.length === 0) {
-                const fallback = await Product.find({ name: { $regex: query, $options: 'i' } }).limit(5).lean();
-                return JSON.stringify(fallback);
+            const products = await Product.find({ $text: { $search: query } }).limit(10).lean();
+            let rawResults = products;
+            
+            if (rawResults.length === 0) {
+                rawResults = await Product.find({ name: { $regex: query, $options: 'i' } }).limit(10).lean();
             }
-            return JSON.stringify(products);
+
+            // KYC & Trust Score Filtering
+            const enrichedResults = [];
+            for (const p of rawResults) {
+                const merchant = await User.findOne({ userId: p.merchantId }).lean();
+                if (!merchant) continue;
+                
+                // KYC Blocking: Ignore merchants without a verified Razorpay Linked Account
+                if (merchant.merchantConfig.kycStatus !== 'VERIFIED' && !merchant.merchantConfig.razorpayLinkedAccountId) {
+                    continue; // Skip scammer/unverified products
+                }
+
+                enrichedResults.push({
+                    ...p,
+                    merchantTrustScore: merchant.merchantConfig.trustScore || 100
+                });
+            }
+
+            // Sort by Trust Score descending
+            enrichedResults.sort((a, b) => b.merchantTrustScore - a.merchantTrustScore);
+
+            return JSON.stringify(enrichedResults.slice(0, 5));
         } catch (err) {
             return JSON.stringify({ error: err.message });
         }
@@ -213,7 +235,7 @@ export class AiService {
     );
 
     const agent = createReactAgent({
-        llm: geminiModel,
+        llm: mistralModel,
         tools: [searchCatalogTool, autocartCheckoutTool],
     });
 
@@ -259,7 +281,7 @@ export class AiService {
     );
 
     const agent = createReactAgent({
-        llm: geminiModel,
+        llm: mistralModel,
         tools: [boundUploadProduct, boundUpdateInventory, boundViewCatalog, boundAnalyzeSales],
     });
 
