@@ -35,31 +35,31 @@ export default function BuyerCommandCenter() {
     <DashboardLayout role="buyer">
       <div className="max-w-5xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground">Command Center</h1>
-          <p className="text-muted-foreground text-sm mt-1">Monitor your AI's purchasing activity and trust engine statistics.</p>
+          <h1 className="text-2xl font-bold text-zinc-50">Command Center</h1>
+          <p className="text-zinc-400 text-sm mt-1">Monitor your AI's purchasing activity and trust engine statistics.</p>
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {statCards.map(({ label, value, icon: Icon, colorClass }) => {
             const [text, bg] = colorClass.split(' ');
             return (
-              <div key={label} className="bg-card border border-border rounded-xl p-5 shadow-sm">
+              <div key={label} className="bg-zinc-900/40 backdrop-blur-sm border border-zinc-700 rounded-xl p-5 shadow-sm">
                 <div className={`${bg} ${text} w-9 h-9 rounded-lg flex items-center justify-center mb-3`}>
                   <Icon className="w-4 h-4" />
                 </div>
-                <div className="text-2xl font-bold text-foreground">{value}</div>
-                <div className="text-xs text-muted-foreground mt-1">{label}</div>
+                <div className="text-2xl font-bold text-zinc-50">{value}</div>
+                <div className="text-xs text-zinc-400 mt-1">{label}</div>
               </div>
             );
           })}
         </div>
 
-        <div className="bg-card border border-border rounded-xl p-8 flex flex-col items-center justify-center text-center shadow-sm">
+        <div className="bg-zinc-900/40 backdrop-blur-sm border border-zinc-700 rounded-xl p-8 flex flex-col items-center justify-center text-center shadow-sm">
           <div className="bg-blue-500/10 text-blue-500 w-16 h-16 rounded-full flex items-center justify-center mb-4">
             <Bot className="w-8 h-8" />
           </div>
-          <h2 className="text-xl font-bold mb-2 text-foreground">Ready to Dispatch your Agent?</h2>
-          <p className="text-muted-foreground max-w-md mb-6">
+          <h2 className="text-xl font-bold mb-2 text-zinc-50">Ready to Dispatch your Agent?</h2>
+          <p className="text-zinc-400 max-w-md mb-6">
             The AI Agent has been upgraded to a dedicated full-screen Hub with chat history, enabling complex autonomous workflows and multi-session tracking.
           </p>
           <Link 

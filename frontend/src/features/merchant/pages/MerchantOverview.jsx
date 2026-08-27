@@ -78,19 +78,19 @@ export default function MerchantOverview() {
         )}
 
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Overview</h1>
-          <p className="text-muted-foreground mt-1">Real-time metrics of your autonomous traffic and transaction outcomes.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-50">Overview</h1>
+          <p className="text-zinc-400 mt-1">Real-time metrics of your autonomous traffic and transaction outcomes.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {statCards.map(({ label, value, color, icon: Icon }) => (
-            <Card key={label} className="p-6 bg-card border-border/50 shadow-sm hover:border-border transition-colors">
+            <Card key={label} className="p-6 bg-zinc-900/40 backdrop-blur-sm border-zinc-800/50 shadow-sm hover:border-zinc-700 transition-colors">
               <div className="flex justify-between items-start">
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground">{label}</p>
+                  <p className="text-sm font-medium text-zinc-400">{label}</p>
                   <p className={`text-3xl font-bold tracking-tight ${color}`}>{value}</p>
                 </div>
-                <div className={`p-2 rounded-lg bg-background/50 border border-border/50 ${color}`}>
+                <div className={`p-2 rounded-lg bg-zinc-950/50 border border-zinc-800/50 ${color}`}>
                   <Icon className="w-5 h-5" />
                 </div>
               </div>
@@ -99,18 +99,18 @@ export default function MerchantOverview() {
         </div>
 
         <div className="grid lg:grid-cols-2 gap-6">
-          <Card className="p-6 bg-card border-border/50">
-            <h3 className="text-lg font-semibold mb-4 text-foreground">Next Steps</h3>
-            <div className="h-64 flex flex-col items-center justify-center border border-dashed border-border/50 rounded-lg bg-background/30 text-muted-foreground p-6 text-center">
+          <Card className="p-6 bg-zinc-900/40 backdrop-blur-sm border-zinc-800/50">
+            <h3 className="text-lg font-semibold mb-4 text-zinc-50">Next Steps</h3>
+            <div className="h-64 flex flex-col items-center justify-center border border-dashed border-zinc-800/50 rounded-lg bg-zinc-950/30 text-zinc-400 p-6 text-center">
               <Activity className="w-8 h-8 mb-4 opacity-50 text-blue-400" />
-              <h4 className="text-foreground font-medium mb-2">Connect Your Data</h4>
+              <h4 className="text-zinc-50 font-medium mb-2">Connect Your Data</h4>
               <p className="text-sm">Install the AutoCart SDK on your external backend to enable real-time price verification and cryptographic signature generation.</p>
             </div>
           </Card>
-          <Card className="p-6 bg-card border-border/50">
-            <h3 className="text-lg font-semibold mb-4 text-foreground">Quick Setup</h3>
-            <p className="text-sm text-muted-foreground mb-4">Install the package and drop in the Express middleware to get started.</p>
-            <pre className="p-4 rounded-lg bg-black/40 border border-border/30 text-xs text-muted-foreground font-mono overflow-x-auto">
+          <Card className="p-6 bg-zinc-900/40 backdrop-blur-sm border-zinc-800/50">
+            <h3 className="text-lg font-semibold mb-4 text-zinc-50">Quick Setup</h3>
+            <p className="text-sm text-zinc-400 mb-4">Install the package and drop in the Express middleware to get started.</p>
+            <pre className="p-4 rounded-lg bg-black/40 border border-zinc-800/30 text-xs text-zinc-400 font-mono overflow-x-auto">
 {`npm install @autocart/sdk
 
 import { AutoCartGateway } from '@autocart/sdk';
