@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { TrendingUp, ShieldCheck, Zap, Activity } from 'lucide-react';
+import { TrendingUp, ShieldCheck, Zap, Activity, ShieldAlert } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import apiClient from '@/shared/services/apiClient';
 
@@ -11,12 +11,18 @@ export default function MerchantOverview() {
     blocked: 0,
     revenueProtected: 0
   });
+  const [config, setConfig] = useState(null);
 
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        const res = await apiClient.get('/api/dashboard/metrics');
-        const data = res.data;
+        const [metricsRes, configRes] = await Promise.all([
+          apiClient.get('/api/dashboard/metrics'),
+          apiClient.get('/api/dashboard/config')
+        ]);
+        
+        setConfig(configRes.data.config);
+        const data = metricsRes.data;
         
         // Sum up the real stats
         const counts = data.statusCounts || {};
@@ -45,9 +51,32 @@ export default function MerchantOverview() {
     { label: 'AI Assisted Sales', value: `₹${stats.revenueProtected.toLocaleString()}`, color: 'text-blue-400', icon: TrendingUp },
   ];
 
+  const isVerified = config?.kycStatus === 'VERIFIED' && config?.razorpayLinkedAccountId;
+
   return (
     <DashboardLayout role="merchant">
       <div className="max-w-6xl mx-auto space-y-8">
+        
+        {!isVerified && (
+          <div className="bg-red-500/10 border border-red-500/20 p-4 rounded-xl flex items-start gap-4">
+            <div className="p-2 bg-red-500/20 rounded-lg text-red-500 shrink-0">
+              <ShieldAlert className="w-5 h-5" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-red-500 font-semibold text-sm">Action Required: Razorpay Business KYC</h3>
+              <p className="text-red-500/80 text-sm mt-1 mb-3 leading-relaxed">
+                Your AutoCart products are currently hidden from all AI Agents to protect buyers from fraud. You must verify your business identity and link your Razorpay banking account via <strong>Razorpay Route</strong> before your catalog goes live.
+              </p>
+              <button 
+                onClick={() => alert("Redirecting to Razorpay OAuth KYC Flow...")}
+                className="bg-red-500 hover:bg-red-600 text-white px-4 py-1.5 rounded-md text-sm font-medium transition-colors"
+              >
+                Start Verification
+              </button>
+            </div>
+          </div>
+        )}
+
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Overview</h1>
           <p className="text-muted-foreground mt-1">Real-time metrics of your autonomous traffic and transaction outcomes.</p>
