@@ -7,22 +7,90 @@
     <img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" />
     <img src="https://img.shields.io/badge/MongoDB-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white" />
     <img src="https://img.shields.io/badge/Razorpay-02042B?style=for-the-badge&logo=razorpay&logoColor=3395FF" />
+    <img src="https://img.shields.io/badge/Twilio-F22F46?style=for-the-badge&logo=twilio&logoColor=white" />
     <img src="https://img.shields.io/badge/LangChain-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white" />
   </p>
 </div>
 
 ---
 
-## 🎯 The Objective (The Problem)
-By 2026, AI Agents will handle the majority of B2B procurement. However, the current financial internet is built for humans, relying on CAPTCHAs, OTPs, and visual checkout UIs. 
+## 🤖 What does it do? (The "Explain it to me like I'm 5" version)
 
-Furthermore, **trust is fundamentally broken**. If an AI agent buys a product, how does the buyer know the merchant is a real business? How does the merchant prevent an AI from draining a corporate budget?
+Imagine you tell your AI Assistant: *"Our company is running out of cloud storage. Find the best deal and buy 500GB."*
 
-## 🚀 The Solution: AutoCart
-AutoCart is a headless, dual-sided commerce protocol that solves the "global protocol race" (ACP, AP2). We provide the infrastructure for AI-to-Agent commerce with 100% cryptographic explainability.
+Normally, the AI can't do this. It can't click through visual checkout screens, solve CAPTCHAs, or receive an SMS OTP to approve a credit card charge. **AutoCart fixes this.** 
 
-1. **For Merchants (`@autocart/sdk`):** A drop-in server SDK to securely receive headless API payments, guarded by a Zero-Trust Firewall (budget limits, 2FA gating).
-2. **For AI Developers (`@autocart/ai-tools`):** LangChain-compatible tools that allow your LLM to securely search the global verified catalog and execute Razorpay checkouts with a single line of code.
+AutoCart is a headless network where **AI agents can autonomously search for products and purchase them for you**, while remaining securely trapped inside a cryptographic budget firewall so they can never spend more money than you authorize.
+
+---
+
+## 🎯 The Problem
+By 2026, AI Agents will handle the majority of B2B procurement. However, the current financial internet is built for humans. 
+
+Furthermore, **trust is fundamentally broken** in agent-to-agent commerce:
+1. **For the Buyer:** How do you prevent your AI from hallucinating and spending $10,000 on a product? How does the AI know the merchant isn't a scammer?
+2. **For the Merchant:** How do you accept automated API payments without humans, while verifying the AI actually has the authority to spend the company's money?
+
+---
+
+## 🚀 The Solution: A Dual-Sided SDK Protocol
+
+AutoCart provides tools for both sides of the marketplace:
+
+### 1. For AI Developers (The Buyer Side)
+If you are building an AI agent (using LangChain or OpenAI), you can use our `@autocart/ai-tools` package. It gives your AI the superpower to query our global catalog and execute secure API purchases.
+
+**How to use it:**
+```javascript
+import { createReactAgent } from "@langchain/langgraph";
+import { AutoCartSearchTool, AutoCartBuyerTool } from "@autocart/ai-tools";
+
+// 1. Initialize the AutoCart Tools
+const searchTool = new AutoCartSearchTool();
+const buyTool = new AutoCartBuyerTool({ buyerKey: 'buyer_secret_key' });
+
+// 2. Inject the tools directly into your AI Model
+const agent = createReactAgent({
+  llm: mistralModel,
+  tools: [searchTool, buyTool] 
+});
+
+// 3. Just ask the AI to do the work!
+await agent.invoke({ messages: [{ role: "user", content: "Buy 10 enterprise licenses from Microsoft." }]});
+// The AI will automatically search the catalog, find the Merchant webhook URL, and execute the purchase securely.
+```
+
+### 2. For Merchants (The Seller Side)
+If you want to sell products to AI agents, you can't rely on a visual shopping cart. You need to accept automated JSON payloads. By dropping `@autocart/sdk` into your Node.js server, you instantly get a secure "AI Checkout Endpoint".
+
+**How to use it:**
+```javascript
+import express from 'express';
+import { AutoCartGateway } from '@autocart/sdk';
+
+const app = express();
+
+// 1. Initialize the SDK with your Merchant Credentials
+const gateway = new AutoCartGateway({
+  merchantKey: 'your_merchant_key',
+  merchantSecret: 'your_merchant_secret'
+});
+
+// 2. The SDK automatically sets up secure POST routes on /autocart
+// It validates HMAC-SHA256 signatures, ensuring the AI is authorized to spend the money!
+app.use('/autocart', gateway.createRouter());
+
+app.listen(3000, () => console.log('Merchant Server ready to receive AI orders!'));
+```
+
+---
+
+## 🛡️ Zero-Trust Security & KYC Features
+
+- 🔐 **Dual-Policy Firewall:** Merchants set `autoApproveUnder` limits. Buyers set `dailyBudgetLimit`. The strictest constraint always wins.
+- 📱 **Out-of-Band (OOB) Approvals:** If an AI attempts to exceed the budget, the transaction is safely blocked (`GATED_1_CLICK`). The human supervisor instantly receives a **Twilio WhatsApp message** with a magic approval link to manually override the AI.
+- 🏢 **DNS Domain Verification:** Merchant Webhook endpoints are cryptographically verified via native DNS TXT record lookups to prevent domain spoofing and Man-in-the-Middle attacks.
+- 🏦 **Razorpay Route (KYC):** Scammers are automatically hidden from the AI Catalog. Only businesses that pass real-world KYC via Razorpay Linked Accounts are visible to AI buyers. Payments are instantly split (98% to Merchant, 2% Platform Fee).
 
 ---
 
@@ -45,63 +113,19 @@ AutoCart is a headless, dual-sided commerce protocol that solves the "global pro
 
 ---
 
-## ✨ Key Features
-
-- 🔐 **Zero-Trust Firewall:** Merchants set `autoApproveUnder` limits. Buyers set `dailyBudgetLimit`. The strict constraint always wins.
-- 📱 **Out-of-Band (OOB) Approvals:** If an AI attempts to exceed the budget, the transaction is safely blocked (`GATED_1_CLICK`) and instantly pings the human supervisor via Twilio WhatsApp with a magic approval link.
-- 🏢 **DNS Domain Verification:** Merchant Webhook endpoints are cryptographically verified via native DNS TXT record lookups to prevent domain spoofing.
-- 🏦 **Razorpay Route (KYC):** Scammers are automatically hidden from the AI Catalog. Only businesses that pass real-world KYC via Razorpay Linked Accounts are visible to AI buyers, with payments instantly split (98% to Merchant, 2% Platform Fee).
-- 🧾 **Immutable Audit Trail:** Every API ping, approval, and denial generates an un-deletable cryptographic Privacy Receipt for corporate compliance.
-
----
-
-## 💻 Developer Experience (DX)
-
-### Inject AutoCart into your LangChain LLM in 1 line:
-```javascript
-import { createReactAgent } from "@langchain/langgraph";
-import { AutoCartSearchTool, AutoCartBuyerTool } from "@autocart/ai-tools";
-
-// Connect to the AutoCart Network
-const searchTool = new AutoCartSearchTool();
-const buyTool = new AutoCartBuyerTool({ buyerKey: process.env.AUTOCART_BUYER_KEY });
-
-const agent = createReactAgent({
-  llm: mistralModel,
-  tools: [searchTool, buyTool] // Your AI can now shop securely!
-});
-```
-
-### Accept AutoCart traffic on your Express server in 1 line:
-```javascript
-import express from 'express';
-import { AutoCartGateway } from '@autocart/sdk';
-
-const app = express();
-const gateway = new AutoCartGateway({
-  merchantKey: process.env.MERCHANT_KEY,
-  merchantSecret: process.env.MERCHANT_SECRET
-});
-
-// Automatically handle HMAC verification, catalog syncing, and checkout logic
-app.use('/autocart', gateway.createRouter());
-```
-
----
-
 ## 🛠️ How to run locally
 
 ### 1. Environment Variables
 Clone the repository and configure your `.env` variables based on `.env.example`. You will need keys for MongoDB, Razorpay, Mistral AI, and Twilio.
 
-### 2. Start the AutoCart Backend
+### 2. Start the AutoCart Central Gateway (Backend)
 ```bash
 cd backend
 npm install
 npm run start
 ```
 
-### 3. Start the Frontend Dashboard
+### 3. Start the Dashboard (Frontend)
 ```bash
 cd frontend
 npm install
