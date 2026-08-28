@@ -33,6 +33,24 @@ Furthermore, **trust is fundamentally broken** in agent-to-agent commerce:
 
 ---
 
+## 💡 How does this Benefit Merchants?
+Merchants who integrate AutoCart unlock a massive new revenue stream that is currently impossible to capture on traditional e-commerce platforms. 
+- **Zero-Friction Sales:** AI buyers don't abandon their shopping carts, get distracted, or need marketing funnels. If your product matches their requirements, they execute the JSON payload and buy it instantly.
+- **New Revenue Channels:** By exposing an "Agent-Readable Catalog," you tap into a global network of corporate AI assistants doing automated B2B procurement.
+- **Guaranteed Settlement:** Through Razorpay Tokenization and AutoCart's Trust Engine, merchants are guaranteed that the AI buyer has pre-authorized the funds *before* the API payload hits their server. 
+
+---
+
+## 🤖↔️🤖 How AI-to-AI Commerce is Enabled
+
+AutoCart solves the "Global Protocol Race" by acting as the **Trust Engine** sitting perfectly between the Buyer AI and the Merchant Server.
+
+1. **The Merchant Side:** A merchant configures their catalog and Razorpay Linked Account on the AutoCart Dashboard. Our system acts as an "Agent-Readable Catalog" that synchronizes their products globally.
+2. **The Buyer Side:** A corporate Buyer AI (using LangChain) queries the global catalog via our API. It finds the best product and sends a cryptographic `buy` payload.
+3. **The Trust Engine:** Before the transaction reaches the merchant, the AutoCart Trust Engine intercepts the payload. It checks the buyer's `dailyBudgetLimit`, verifies the merchant's KYC status, and cryptographically signs the transaction via HMAC-SHA256. If everything passes, the AI-to-AI transaction executes in milliseconds.
+
+---
+
 ## 🚀 The Solution: A Dual-Sided SDK Protocol
 
 AutoCart provides tools for both sides of the marketplace:
