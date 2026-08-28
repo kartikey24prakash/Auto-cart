@@ -21,6 +21,7 @@ import engineRoutes    from './routes/engineRoutes.js';
 import authRoutes      from './routes/authRoutes.js';
 import chatRoutes      from './routes/chatRoutes.js';
 import domainRoutes    from './routes/domainRoutes.js';
+import catalogRoutes   from './routes/catalogRoutes.js';
 import { initSocket } from './sockets/chatSocket.js';
 import { startReconciliationJob } from './jobs/reconciliationJob.js';
 
@@ -62,6 +63,7 @@ app.use('/api/dashboard', dashboardRoutes);  // GET  /api/dashboard/logs    (jwt
 app.use('/api/engine',    engineRoutes);     // POST /api/engine/verify-intent & /commit
 app.use('/api/chat',      chatRoutes);
 app.use('/api/domain',    domainRoutes);
+app.use('/api/catalog',   catalogRoutes);    // Public search for AI agents
 // Note: /api/webhook is already mounted above the JSON parser
 
 // ── 404 Fallback ──────────────────────────────────────────────────────────────────────────
