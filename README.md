@@ -14,6 +14,27 @@
 
 ---
 
+## 🏆 How We Solved the Hackathon Prompt
+
+This project was built specifically for the **"AI Growth & Agentic Commerce"** track. Here is exactly how we hit "the bar" and solved the core objectives:
+
+✅ **"Make a merchant transactable by an AI buyer end to end"**
+By providing `@autocart/sdk` for merchants and `@autocart/ai-tools` for AI developers, we built the missing infrastructure for true Agent-to-Agent (ACP/AP2) commerce.
+
+✅ **"Agent-readable catalog"**
+Our MongoDB central gateway acts as a global, authenticated catalog. Instead of AI scraping HTML websites, it queries our `/api/catalog/search` endpoint to instantly find verified merchant products and pricing.
+
+✅ **"Every money action explainable, bounded and gated"**
+Our **Zero-Trust Firewall** ensures that the AI cannot spend infinite money. Transactions are mathematically bounded by a `dailyBudgetLimit` on the buyer side and an `autoApproveUnder` threshold on the merchant side.
+
+✅ **"Show the audit trail"**
+Every single API ping, approval, and rejection generates an immutable cryptographic Privacy Receipt in our dashboard, providing full corporate compliance for B2B procurement.
+
+✅ **"One failure handled gracefully"**
+If an AI hallucinates or attempts to buy a product that exceeds the budget limit, the transaction doesn't crash or blindly fail. Instead, it is gracefully blocked (`GATED_1_CLICK`) and a **Twilio WhatsApp** message is instantly sent to a human supervisor with a magic link to manually approve or deny the transaction.
+
+---
+
 ## 🤖 What does it do? (The "Explain it to me like I'm 5" version)
 
 Imagine you tell your AI Assistant: *"Our company is running out of cloud storage. Find the best deal and buy 500GB."*
