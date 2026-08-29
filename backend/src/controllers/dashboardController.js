@@ -191,6 +191,7 @@ export const getMandate = async (req, res, next) => {
       spentToday: config.spentToday,
       dailyRemaining: Math.max(0, config.dailyBudgetLimit - config.spentToday),
       spentPercent: parseFloat(((config.spentToday / config.dailyBudgetLimit) * 100).toFixed(1)),
+      approvalEmail: config.approvalEmail || '',
       lastResetDate: 'N/A', // To be implemented in Phase 2
       updatedAt: user.updatedAt,
     }];
@@ -206,15 +207,17 @@ export const updateMandate = async (req, res, next) => {
     if (req.user.role.toUpperCase() !== 'BUYER') {
       return res.status(403).json({ error: 'Only buyers can update their mandate' });
     }
-    const { dailyLimit } = req.body;
-    if (typeof dailyLimit !== 'number' || dailyLimit < 1) {
+    const { dailyLimit, approvalEmail } = req.body;
+    if (dailyLimit && (typeof dailyLimit !== 'number' || dailyLimit < 1)) {
       return res.status(400).json({ error: 'Invalid dailyLimit' });
     }
 
     const user = await User.findOne({ userId: req.user.userId, role: 'BUYER' });
     if (!user) return res.status(404).json({ error: 'Buyer not found' });
 
-    user.buyerConfig.dailyBudgetLimit = dailyLimit;
+    if (dailyLimit) user.buyerConfig.dailyBudgetLimit = dailyLimit;
+    if (approvalEmail !== undefined) user.buyerConfig.approvalEmail = approvalEmail;
+
     await user.save();
 
     res.json({ success: true, dailyLimit: user.buyerConfig.dailyBudgetLimit });

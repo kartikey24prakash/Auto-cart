@@ -3,7 +3,6 @@ import Razorpay from 'razorpay';
 import { User } from '../models/User.js';
 import { AuditLog } from '../models/AuditLog.js';
 import { v4 as uuidv4 } from 'uuid';
-import { sendApprovalMessage } from '../services/whatsappService.js';
 
 // Helper to verify the HMAC signature from the SDK
 const verifySignature = (payload, signature, secret) => {
@@ -37,17 +36,8 @@ const createRazorpayOrder = async (merchant, amount, receiptId) => {
   };
 
   // Phase 2: Razorpay Route (Money Routing)
-  if (merchant.merchantConfig.razorpayLinkedAccountId) {
-    orderPayload.transfers = [
-      {
-        account: merchant.merchantConfig.razorpayLinkedAccountId,
-        amount: amountPaise - platformFeePaise,
-        currency: 'INR',
-        notes: { auditId: receiptId },
-        on_hold: false
-      }
-    ];
-  }
+  // Disabled for Hackathon Demo because acc_demo123 is a fake account ID and crashes the Razorpay SDK
+  // if (merchant.merchantConfig.razorpayLinkedAccountId) { ... }
 
   return await rzp.orders.create(orderPayload);
 };
@@ -96,28 +86,27 @@ const createRazorpayOrder = async (merchant, amount, receiptId) => {
       await buyer.save();
     }
 
-    // 4. Evaluate Policy: Buyer Budget
-    if (buyer.buyerConfig.spentToday + lineTotal > buyer.buyerConfig.dailyBudgetLimit) {
-      const log = await AuditLog.create({
-        auditId: `aud_${uuidv4()}`,
-        buyerId: buyer.userId, merchantId: merchant.userId, sku, qty, amount: lineTotal,
-        status: 'GATED_1_CLICK', blockReason: 'daily_limit_exceeded',
-        idempotencyKey, sdkSignature: signature, shippingAddress: defaultShipping
-      });
+      // 4. Evaluate Policy: Buyer Budget
+      if (buyer.buyerConfig.spentToday + lineTotal > buyer.buyerConfig.dailyBudgetLimit) {
+        const log = await AuditLog.create({
+          auditId: `aud_${uuidv4()}`,
+          buyerId: buyer.userId, merchantId: merchant.userId, sku, qty, amount: lineTotal,
+          status: 'GATED_1_CLICK', blockReason: 'daily_limit_exceeded',
+          idempotencyKey, sdkSignature: signature, shippingAddress: defaultShipping
+        });
+        
+        // Removed Email and 2FA: Purely "Human-in-the-Loop" Dashboard Approval
+        return res.json({ status: 'GATED_1_CLICK', auditId: log.auditId });
+      }
+
+      // 5. Evaluate Policy: Merchant Risk Tiers
+      const rules = merchant.merchantConfig.firewallRules;
+      let verdict = 'AUTO_APPROVED';
       
-      // FIRE OUT-OF-BAND APPROVAL (WhatsApp)
-      const phone = buyer.buyerConfig.shippingProfiles?.[0]?.phone || '919876543210';
-      await sendApprovalMessage(phone, log.auditId, lineTotal, sku);
-
-      return res.json({ status: 'GATED_1_CLICK', auditId: log.auditId });
-    }
-
-    // 5. Evaluate Policy: Merchant Risk Tiers
-    const rules = merchant.merchantConfig.firewallRules;
-    let verdict = 'AUTO_APPROVED';
-    
-    if (lineTotal >= rules.require2FAOver) verdict = 'GATED_2FA';
-    else if (lineTotal >= rules.autoApproveUnder) verdict = 'GATED_1_CLICK';
+      // Removed GATED_2FA completely. Force everything over the limit to 1-Tap UI Approval.
+      if (lineTotal >= rules.autoApproveUnder) {
+         verdict = 'GATED_1_CLICK';
+      }
 
     // 6. Generate Pending Audit Log
     const auditId = `aud_${uuidv4()}`;

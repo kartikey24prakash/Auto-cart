@@ -1,13 +1,11 @@
 import { useEffect, useState } from 'react';
 import { auditApi } from '../../audit-terminal/services/auditApi';
 import OneClickCard from './OneClickCard';
-import TOTPModal from './TOTPModal';
 import RazorpayModal from '../../../shared/components/RazorpayModal';
 
 export default function ApprovalCardList() {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [totpModalState, setTotpModalState] = useState({ isOpen: false, auditId: null });
   const [paymentModalState, setPaymentModalState] = useState({ isOpen: false, orderDetails: null });
 
   const fetchTransactions = async () => {
@@ -67,25 +65,10 @@ export default function ApprovalCardList() {
             key={tx.auditId} 
             transaction={tx} 
             onProcessed={fetchTransactions}
-            onRequest2FA={(auditId) => setTotpModalState({ isOpen: true, auditId })}
             onPaymentRequired={handlePaymentRequired}
           />
         ))
       )}
-
-      <TOTPModal 
-        isOpen={totpModalState.isOpen}
-        auditId={totpModalState.auditId}
-        onClose={() => setTotpModalState({ isOpen: false, auditId: null })}
-        onSuccess={(orderDetails) => {
-          setTotpModalState({ isOpen: false, auditId: null });
-          if (orderDetails) {
-            handlePaymentRequired(orderDetails);
-          } else {
-            fetchTransactions();
-          }
-        }}
-      />
 
       <RazorpayModal
         isOpen={paymentModalState.isOpen}

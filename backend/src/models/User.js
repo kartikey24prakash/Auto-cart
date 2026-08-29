@@ -12,6 +12,7 @@ const userSchema = new mongoose.Schema(
     buyerConfig: {
       buyerKey: { type: String, unique: true, sparse: true },
       dailyBudgetLimit: { type: Number, default: 50000 },
+      approvalEmail: { type: String },
       spentToday: { type: Number, default: 0 },
       lastResetDate: { type: Date, default: null },
       // Tokenized Payment Method for Auto-Billing

@@ -15,11 +15,16 @@ const mistralModel = new ChatMistralAI({
 const searchCatalogTool = tool(
     async ({ query }) => {
         try {
-            const products = await Product.find({ $text: { $search: query } }).limit(10).lean();
-            let rawResults = products;
+            let rawResults = [];
             
-            if (rawResults.length === 0) {
-                rawResults = await Product.find({ name: { $regex: query, $options: 'i' } }).limit(10).lean();
+            // If the user asks for "all", "everything", or generic items, just return everything
+            if (!query || query.toLowerCase() === 'all' || query.toLowerCase() === 'items' || query.toLowerCase() === 'everything') {
+                rawResults = await Product.find({}).limit(10).lean();
+            } else {
+                rawResults = await Product.find({ $text: { $search: query } }).limit(10).lean();
+                if (rawResults.length === 0) {
+                    rawResults = await Product.find({ name: { $regex: query, $options: 'i' } }).limit(10).lean();
+                }
             }
 
             // KYC & Trust Score Filtering
@@ -199,7 +204,7 @@ export class AiService {
       qty: qty,
       lineTotal: product.price * qty,
       idempotencyKey: crypto.randomUUID(),
-      maxAuthorizedAmount: 5000
+      maxAuthorizedAmount: 100000 // Increased so backend evaluates the actual user budget limits
     };
 
     const signature = crypto.createHmac('sha256', merchant.merchantConfig.merchantSecret).update(JSON.stringify(payload)).digest('hex');

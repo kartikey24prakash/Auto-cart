@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import apiClient from '@/shared/services/apiClient';
 
 export default function BuyerSettings() {
-  const [mandate, setMandate] = useState({ dailyBudgetLimit: 5000 });
+  const [mandate, setMandate] = useState({ dailyBudgetLimit: 5000, approvalEmail: '' });
   const [shipping, setShipping] = useState({ 
     fullName: '', addressLine1: '', city: '', state: '', pincode: '', phone: '' 
   });
@@ -20,7 +20,10 @@ export default function BuyerSettings() {
           apiClient.get('/api/dashboard/shipping')
         ]);
         if (mandateRes.data.mandates?.length > 0) {
-          setMandate({ dailyBudgetLimit: mandateRes.data.mandates[0].dailyLimit });
+          setMandate({ 
+            dailyBudgetLimit: mandateRes.data.mandates[0].dailyLimit || mandateRes.data.mandates[0].dailyBudgetLimit,
+            approvalEmail: mandateRes.data.mandates[0].approvalEmail || ''
+          });
         }
         if (shippingRes.data.shippingProfiles?.length > 0) {
           const profile = shippingRes.data.shippingProfiles[0];
@@ -44,8 +47,11 @@ export default function BuyerSettings() {
     setIsSaving(true);
     try {
       await Promise.all([
-        // Backend expects { dailyLimit: number }
-        apiClient.put('/api/dashboard/mandate', { dailyLimit: Number(mandate.dailyBudgetLimit) }),
+        // Backend expects { dailyLimit: number, approvalEmail: string }
+        apiClient.put('/api/dashboard/mandate', { 
+          dailyLimit: Number(mandate.dailyBudgetLimit),
+          approvalEmail: mandate.approvalEmail 
+        }),
         apiClient.put('/api/dashboard/shipping', shipping)
       ]);
       setSaved(true);
@@ -101,6 +107,20 @@ export default function BuyerSettings() {
               />
               <p className="text-xs text-muted-foreground pt-1">
                 Purchases exceeding this limit will be placed in your Approval Inbox. Purchases under this limit will be auto-billed to your linked card.
+              </p>
+            </div>
+            
+            <div className="space-y-2 pt-2">
+              <label className="text-sm font-medium text-foreground">Manager Approval Email</label>
+              <input 
+                type="email" 
+                value={mandate.approvalEmail || ''}
+                onChange={e => setMandate({ ...mandate, approvalEmail: e.target.value })}
+                placeholder="finance@company.com"
+                className="w-full bg-background border border-border/60 rounded-lg p-2.5 shadow-sm text-foreground focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 outline-none transition-all"
+              />
+              <p className="text-xs text-muted-foreground pt-1">
+                When a purchase exceeds the limit above, the Magic Link will be sent here.
               </p>
             </div>
           </div>
