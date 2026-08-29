@@ -58,12 +58,12 @@ AutoCart solves the "Global Protocol Race" by acting as the **Trust Engine** sit
 AutoCart provides tools for both sides of the marketplace:
 
 ### 1. For AI Developers (The Buyer Side)
-If you are building an AI agent (using LangChain or OpenAI), you can use our `@autocart/ai-tools` package. It gives your AI the superpower to query our global catalog and execute secure API purchases.
+If you are building an AI agent (using LangChain or OpenAI), you can use our `autocart-ai-tools` package. It gives your AI the superpower to query our global catalog and execute secure API purchases.
 
 **How to use it:**
 ```javascript
 import { createReactAgent } from "@langchain/langgraph";
-import { AutoCartSearchTool, AutoCartBuyerTool } from "@autocart/ai-tools";
+import { AutoCartSearchTool, AutoCartBuyerTool } from "autocart-ai-tools";
 
 // 1. Initialize the AutoCart Tools
 const searchTool = new AutoCartSearchTool();
@@ -81,12 +81,12 @@ await agent.invoke({ messages: [{ role: "user", content: "Buy 10 enterprise lice
 ```
 
 ### 2. For Merchants (The Seller Side)
-If you want to sell products to AI agents, you can't rely on a visual shopping cart. You need to accept automated JSON payloads. By dropping `@autocart/sdk` into your Node.js server, you instantly get a secure "AI Checkout Endpoint".
+If you want to sell products to AI agents, you can't rely on a visual shopping cart. You need to accept automated JSON payloads. By dropping `autocart-sdk` into your Node.js server, you instantly get a secure "AI Checkout Endpoint".
 
 **How to use it:**
 ```javascript
 import express from 'express';
-import { AutoCartGateway } from '@autocart/sdk';
+import { AutoCartGateway } from 'autocart-sdk';
 
 const app = express();
 
@@ -161,3 +161,48 @@ node server.js
 
 ---
 *Built with ❤️ for the Razorpay "AI Growth & Agentic Commerce" Hackathon.*
+
+
+---
+
+## Detailed Transaction Sequence
+
+This sequence diagram illustrates the complete, end-to-end lifecycle of an autonomous transaction through the Auto-Cart network.
+
+`mermaid
+sequenceDiagram
+    autonumber
+    
+    actor H as Human Supervisor
+    participant A as Buyer AI (LangChain)
+    participant G as AutoCart Trust Gateway
+    participant T as Twilio (WhatsApp)
+    participant M as Merchant Server (SDK)
+    participant R as Razorpay
+
+    Note over A,G: Phase 1: Intent & Negotiation
+    A->>G: Queries Global Catalog (I need 50 licenses)
+    G-->>A: Returns verified products & pricing
+    A->>G: POST /autocart/checkout { amount: 5000 }
+    
+    Note over G,M: Phase 2: The Trust Firewall
+    G->>G: Verify Merchant DNS TXT Records
+    G->>G: Evaluate Budget Constraints
+    
+    alt Under Budget Limit
+        G->>G: Auto-Approve Transaction
+    else Over Autonomous Budget
+        G->>T: Budget Exceeded. Trigger OOB Approval.
+        T->>H: WhatsApp: AI Agent requesting 5000. Approve?
+        H->>G: Clicks Magic Link (Signed JWT)
+    end
+    
+    Note over G,R: Phase 3: Cryptographic Settlement
+    G->>G: Generate HMAC-SHA256 Signature
+    G->>M: Forward Signed Payload to Merchant Webhook
+    M->>M: SDK Validates Gateway Signature
+    M->>R: Initiate Headless Checkout via Razorpay
+    R-->>M: Payment Success Webhook
+    M-->>G: Receipt & Confirmation
+    G-->>A: Purchase Complete. Receipt stored.
+`
