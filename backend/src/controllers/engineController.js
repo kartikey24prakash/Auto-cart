@@ -131,6 +131,11 @@ const createRazorpayOrder = async (merchant, amount, receiptId) => {
           
           buyer.buyerConfig.spentToday += lineTotal;
           await buyer.save();
+          
+          await Product.updateOne(
+            { sku, merchantId: merchant.userId },
+            { $inc: { stock: -qty } }
+          );
 
           const log = await AuditLog.create({
             auditId, buyerId: buyer.userId, merchantId: merchant.userId, sku, productName, merchantName, qty, amount: lineTotal,

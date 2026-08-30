@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { AuditLog } from '../models/AuditLog.js';
 import { User } from '../models/User.js';
+import { Product } from '../models/Product.js';
 
 export const handleRazorpayWebhook = async (req, res) => {
   try {
@@ -59,6 +60,15 @@ export const handleRazorpayWebhook = async (req, res) => {
 
         // Deduct budget
         await User.updateOne({ userId: log.buyerId, role: 'BUYER' }, { $inc: { 'buyerConfig.spentToday': log.amount } });
+        
+        // Deduct stock
+        if (log.sku && log.qty) {
+          await Product.updateOne(
+            { sku: log.sku, merchantId: log.merchantId },
+            { $inc: { stock: -log.qty } }
+          );
+        }
+        
         console.log(`[Webhook] Order ${orderId} finalized via webhook.`);
       }
     }
