@@ -9,14 +9,17 @@ export function useAuditPolling(pollIntervalMs = 3000) {
 
   const fetchData = useCallback(async () => {
     try {
-      // Run both API requests in parallel
-      const [fetchedLogs, fetchedMetrics] = await Promise.all([
-        auditApi.getLogs(),
-        auditApi.getMetrics()
-      ]);
-      
+      // Fetch logs first so they always appear even if metrics fail
+      const fetchedLogs = await auditApi.getLogs();
       setLogs(fetchedLogs);
-      setMetrics(fetchedMetrics);
+      
+      try {
+        const fetchedMetrics = await auditApi.getMetrics();
+        setMetrics(fetchedMetrics);
+      } catch (metricsErr) {
+        console.warn('Metrics polling failed, but logs succeeded:', metricsErr);
+      }
+      
       setError(null);
     } catch (err) {
       console.error('Audit polling error:', err);

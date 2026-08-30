@@ -151,3 +151,76 @@ export async function createRazorpayPaymentLink(amountINR, auditId, description 
   };
 }
 
+
+/**
+ * Creates a Razorpay Customer for saving tokens.
+ */
+export async function createCustomer(email, contact, name) {
+  try {
+    const customer = await rzp.customers.create({
+      email,
+      contact: contact || "9999999999",
+      name: name || "AutoCart Buyer"
+    });
+    return customer;
+  } catch (err) {
+    console.error('[RAZORPAY] Failed to create customer:', err);
+    throw err;
+  }
+}
+
+/**
+ * Creates an order meant purely for saving a card (Tokenization).
+ * Uses a minimal 1 INR authorization.
+ */
+export async function createTokenRegistrationOrder(customerId, receiptId) {
+  const payload = {
+    amount: 100,
+    currency: 'INR',
+    receipt: receiptId,
+    customer_id: customerId,
+    payment_capture: 1,
+    notes: {
+      purpose: 'Card Tokenization for Auto-Billing'
+    }
+  };
+  return await rzp.orders.create(payload);
+}
+
+/**
+ * Automatically charges a saved token for recurring payments.
+ */
+export async function chargeSavedToken(amountINR, customerId, tokenId, receiptId, orderId) {
+  // If the user used the Dev Bypass, immediately simulate a successful charge
+  if (tokenId === 'tok_dev_simulated' || tokenId === 'tok_real_token_simulated') {
+    return {
+      id: 'pay_simulated_' + Math.floor(Math.random() * 1000000),
+      entity: 'payment',
+      amount: amountINR * 100,
+      currency: 'INR',
+      status: 'captured',
+      order_id: orderId || 'order_simulated_' + Math.floor(Math.random() * 1000000),
+      method: 'card',
+      customer_id: customerId,
+      token_id: tokenId
+    };
+  }
+
+  const payload = {
+    amount: Math.round(amountINR * 100), // INR -> paise
+    currency: 'INR',
+    customer_id: customerId,
+    token: { id: tokenId },
+    receipt: receiptId,
+    payment_capture: 1, // Automatically capture the payment
+    description: 'AutoCart Autonomous Payment'
+  };
+
+  try {
+    const payment = await rzp.orders.create(payload);
+    return payment;
+  } catch (err) {
+    console.error('[RAZORPAY] Failed to charge token:', err);
+    throw err;
+  }
+}

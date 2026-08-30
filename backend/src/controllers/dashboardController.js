@@ -113,7 +113,7 @@ export const getMandate = async (req, res, next) => {
     const config = user.buyerConfig;
     const formatted = [{
       agentId: user.userId,
-      maxPerTx: config.dailyBudgetLimit, // Fallback if no maxPerTx
+      maxPerTx: config.autoApproveMaxPerTx !== undefined ? config.autoApproveMaxPerTx : config.dailyBudgetLimit,
       dailyLimit: config.dailyBudgetLimit,
       spentToday: config.spentToday,
       dailyRemaining: Math.max(0, config.dailyBudgetLimit - config.spentToday),
@@ -134,20 +134,24 @@ export const updateMandate = async (req, res, next) => {
     if (req.user.role.toUpperCase() !== 'BUYER') {
       return res.status(403).json({ error: 'Only buyers can update their mandate' });
     }
-    const { dailyLimit, approvalEmail } = req.body;
+    const { dailyLimit, approvalEmail, maxPerTx } = req.body;
     if (dailyLimit && (typeof dailyLimit !== 'number' || dailyLimit < 1)) {
       return res.status(400).json({ error: 'Invalid dailyLimit' });
+    }
+    if (maxPerTx && (typeof maxPerTx !== 'number' || maxPerTx < 1)) {
+      return res.status(400).json({ error: 'Invalid maxPerTx' });
     }
 
     const user = await User.findOne({ userId: req.user.userId, role: 'BUYER' });
     if (!user) return res.status(404).json({ error: 'Buyer not found' });
 
     if (dailyLimit) user.buyerConfig.dailyBudgetLimit = dailyLimit;
+    if (maxPerTx !== undefined) user.buyerConfig.autoApproveMaxPerTx = maxPerTx;
     if (approvalEmail !== undefined) user.buyerConfig.approvalEmail = approvalEmail;
 
     await user.save();
 
-    res.json({ success: true, dailyLimit: user.buyerConfig.dailyBudgetLimit });
+    res.json({ success: true, dailyLimit: user.buyerConfig.dailyBudgetLimit, maxPerTx: user.buyerConfig.autoApproveMaxPerTx });
   } catch (err) {
     next(err);
   }
@@ -194,6 +198,8 @@ export const updateShipping = async (req, res, next) => {
   }
 };
 
+import { createCustomer, createTokenRegistrationOrder } from '../services/razorpayClient.js';
+
 export const linkPaymentMethod = async (req, res, next) => {
   try {
     if (req.user.role.toUpperCase() !== 'BUYER') return res.status(403).json({ error: 'Only buyers can link payment methods' });
@@ -201,12 +207,26 @@ export const linkPaymentMethod = async (req, res, next) => {
     const user = await User.findOne({ userId: req.user.userId, role: 'BUYER' });
     if (!user) return res.status(404).json({ error: 'Buyer not found' });
     
-    // Simulate Razorpay Token Generation
-    user.buyerConfig.paymentToken = `token_rzp_${Math.random().toString(36).substring(2, 10)}`;
-    user.buyerConfig.isPaymentLinked = true;
-    await user.save();
+    if (!user.buyerConfig.razorpayCustomerId) {
+      const phone = user.buyerConfig.shippingProfiles?.[0]?.phone || '9999999999';
+      const name = user.buyerConfig.shippingProfiles?.[0]?.fullName || 'AutoCart Buyer';
+      const customer = await createCustomer(user.email, phone, name);
+      user.buyerConfig.razorpayCustomerId = customer.id;
+      await user.save();
+    }
+
+    // Create a 1 INR auth order to save the card
+    const order = await createTokenRegistrationOrder(
+      user.buyerConfig.razorpayCustomerId, 
+      `tok_${req.user.userId.substring(0,8)}`
+    );
     
-    res.json({ success: true, isPaymentLinked: true });
+    res.json({ 
+      success: true, 
+      orderId: order.id, 
+      customerId: user.buyerConfig.razorpayCustomerId,
+      keyId: process.env.RAZORPAY_KEY_ID 
+    });
   } catch (err) {
     next(err);
   }

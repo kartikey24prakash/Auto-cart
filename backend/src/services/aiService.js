@@ -187,7 +187,7 @@ export class AiService {
             sku,
             qty,
             idempotencyKey: crypto.randomUUID(),
-            maxAuthorizedAmount: 5000
+            maxAuthorizedAmount: 100000
           })
         });
         const data = await res.json();
@@ -250,7 +250,7 @@ export class AiService {
         You can search the global product catalog using search_catalog.
         When displaying a product, ALWAYS mention the Merchant's name (merchantName) so the user knows who they are buying from.
         If the user wants to buy something, find the SKU and Merchant ID, then use autocart_checkout to buy it.
-        IMPORTANT: If a checkout returns GATED_1_CLICK or GATED_2FA, you MUST include this exact string in your response: [APPROVAL_REQUIRED:auditId] (replace auditId with the actual auditId returned by the tool). Explain gracefully that the transaction exceeded autonomous limits and requires manual 1-tap approval.`),
+        IMPORTANT: If a checkout returns GATED_1_CLICK, GATED_2FA, or ORDER_CREATED, you MUST include this exact string in your response: [APPROVAL_REQUIRED:auditId] (replace auditId with the actual auditId returned by the tool). Explain gracefully that the transaction exceeded autonomous limits or required manual payment approval.`),
         ...history.map(m => {
             if (m.role === 'user') return new HumanMessage(m.content);
             if (m.role === 'ai') return new AIMessage(m.content);

@@ -12,11 +12,13 @@ const userSchema = new mongoose.Schema(
     buyerConfig: {
       buyerKey: { type: String, unique: true, sparse: true },
       dailyBudgetLimit: { type: Number, default: 50000 },
+      autoApproveMaxPerTx: { type: Number, default: 2000 },
       approvalEmail: { type: String },
       spentToday: { type: Number, default: 0 },
       lastResetDate: { type: Date, default: null },
       // Tokenized Payment Method for Auto-Billing
       paymentToken: { type: String, default: null },
+      razorpayCustomerId: { type: String, default: null },
       isPaymentLinked: { type: Boolean, default: false },
       
       shippingProfiles: [

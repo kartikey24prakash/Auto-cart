@@ -4,6 +4,7 @@ import { User } from '../models/User.js';
 import { AuditLog } from '../models/AuditLog.js';
 import { Product } from '../models/Product.js';
 import { v4 as uuidv4 } from 'uuid';
+import { chargeSavedToken } from '../services/razorpayClient.js';
 
 // Helper to verify the HMAC signature from the SDK
 const verifySignature = (payload, signature, secret) => {
@@ -91,31 +92,34 @@ const createRazorpayOrder = async (merchant, amount, receiptId) => {
       await buyer.save();
     }
 
-      // 4. Evaluate Policy: Buyer Budget
+      // 4. Evaluate Policy: Buyer Daily Budget (ABSOLUTE BLOCK)
       if (buyer.buyerConfig.spentToday + lineTotal > buyer.buyerConfig.dailyBudgetLimit) {
         const log = await AuditLog.create({
           auditId: `aud_${uuidv4()}`,
           buyerId: buyer.userId, merchantId: merchant.userId, sku, productName, merchantName, qty, amount: lineTotal,
-          status: 'GATED_1_CLICK', blockReason: 'daily_limit_exceeded',
+          status: 'BLOCKED', blockReason: 'Daily budget limit exceeded. Absolute block applied.',
           idempotencyKey, sdkSignature: signature, shippingAddress: defaultShipping
         });
         
-        // Removed Email and 2FA: Purely "Human-in-the-Loop" Dashboard Approval
-        return res.json({ status: 'GATED_1_CLICK', auditId: log.auditId });
+        return res.json({ status: 'BLOCKED', auditId: log.auditId, reason: 'Daily budget limit exceeded.' });
       }
 
-      // 5. Evaluate Policy: Merchant Risk Tiers
-      const rules = merchant.merchantConfig.firewallRules;
+      // 5. Evaluate Policy: Per-Transaction Gates (1-Click Approval)
+      const merchantLimit = merchant.merchantConfig.firewallRules.autoApproveUnder;
+      const buyerTxLimit = buyer.buyerConfig.autoApproveMaxPerTx || 2000;
+      
       let verdict = 'AUTO_APPROVED';
       
-      // Removed GATED_2FA completely. Force everything over the limit to 1-Tap UI Approval.
-      if (lineTotal >= rules.autoApproveUnder) {
+      // If purchase exceeds EITHER the Buyer's Per-Tx Limit OR the Merchant's Limit -> GATED_1_CLICK
+      if (lineTotal > buyerTxLimit || lineTotal > merchantLimit) {
          verdict = 'GATED_1_CLICK';
       }
 
     // 6. Generate Pending Audit Log
     const auditId = `aud_${uuidv4()}`;
     let razorpayOrderId = null;
+    let paymentId = null;
+    let finalStatus = verdict;
 
     // If AUTO_APPROVED, generate the real order immediately
     if (verdict === 'AUTO_APPROVED') {
@@ -124,48 +128,60 @@ const createRazorpayOrder = async (merchant, amount, receiptId) => {
         razorpayOrderId = order.id;
 
         // Auto-Charge via Razorpay Token!
-        if (buyer.buyerConfig.isPaymentLinked && buyer.buyerConfig.paymentToken) {
+        if (buyer.buyerConfig.isPaymentLinked && buyer.buyerConfig.paymentToken && buyer.buyerConfig.razorpayCustomerId) {
           console.log(`[Auto-Billing] Charging Token ${buyer.buyerConfig.paymentToken} for ₹${lineTotal}...`);
-          // Note: In production we would call Razorpay.payments.create({ amount, currency, customer_id, token_id, ... })
-          // We simulate successful capture:
           
-          buyer.buyerConfig.spentToday += lineTotal;
-          await buyer.save();
-          
-          await Product.updateOne(
-            { sku, merchantId: merchant.userId },
-            { $inc: { stock: -qty } }
-          );
-
-          const log = await AuditLog.create({
-            auditId, buyerId: buyer.userId, merchantId: merchant.userId, sku, productName, merchantName, qty, amount: lineTotal,
-            status: 'PAYMENT_CAPTURED',
-            idempotencyKey, sdkSignature: signature, shippingAddress: defaultShipping,
-            razorpayOrderId,
-            privacyReceipt: {
-              timestamp: new Date().toISOString(),
-              merchantName: merchant.email,
-              total: lineTotal,
-              gateway: 'Razorpay Token Auto-Billing'
+          try {
+            const payment = await chargeSavedToken(
+              lineTotal,
+              buyer.buyerConfig.razorpayCustomerId,
+              buyer.buyerConfig.paymentToken,
+              auditId,
+              order.id
+            );
+            
+            if (payment && (payment.status === 'captured' || payment.status === 'authorized' || payment.status === 'paid' || payment.status === 'created')) {
+              console.log(`[Auto-Billing] Success! Payment ID: ${payment.id}`);
+              paymentId = payment.id;
+              buyer.buyerConfig.spentToday += lineTotal;
+              await buyer.save();
+              finalStatus = 'PAYMENT_CAPTURED';
             }
-          });
-
-          return res.json({ status: 'PAYMENT_CAPTURED', auditId: log.auditId, razorpayOrderId });
+          } catch (paymentErr) {
+            console.error('[Auto-Billing] Failed to charge token, falling back to ORDER_CREATED', paymentErr.message);
+            finalStatus = 'ORDER_CREATED'; // Gated manual fallback
+          }
+        } else {
+           finalStatus = 'ORDER_CREATED';
         }
       } catch (err) {
-        console.error('Razorpay Error:', err);
-        return res.status(500).json({ error: 'Failed to create Razorpay order' });
+        console.error('[RAZORPAY ERROR]', err);
+        return res.status(502).json({ error: 'Failed to communicate with payment gateway' });
       }
+    }
+
+    if (finalStatus === 'PAYMENT_CAPTURED') {
+      await Product.updateOne(
+        { sku, merchantId: merchant.userId },
+        { $inc: { stock: -qty } }
+      );
     }
 
     const log = await AuditLog.create({
       auditId, buyerId: buyer.userId, merchantId: merchant.userId, sku, productName, merchantName, qty, amount: lineTotal,
-      status: verdict === 'AUTO_APPROVED' ? 'ORDER_CREATED' : verdict,
+      status: finalStatus,
       idempotencyKey, sdkSignature: signature, shippingAddress: defaultShipping,
-      razorpayOrderId
+      razorpayOrderId,
+      razorpayPaymentId: paymentId,
+      privacyReceipt: finalStatus === 'PAYMENT_CAPTURED' ? {
+        timestamp: new Date().toISOString(),
+        amount: lineTotal,
+        merchantId: merchant.userId,
+        status: 'PAID'
+      } : undefined
     });
 
-    return res.json({ status: verdict, auditId: log.auditId, razorpayOrderId });
+    return res.json({ status: finalStatus, auditId: log.auditId, razorpayOrderId });
 
   } catch (error) {
     if (error.code === 11000) return res.status(409).json({ error: 'Idempotency key collision.' });

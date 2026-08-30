@@ -32,6 +32,18 @@ export const handleRazorpayWebhook = async (req, res) => {
       if (payloadObj.payload && payloadObj.payload.payment) {
         orderId = payloadObj.payload.payment.entity.order_id;
         paymentId = payloadObj.payload.payment.entity.id;
+        
+        // Handle Tokenization
+        const tokenId = payloadObj.payload.payment.entity.token_id;
+        const customerId = payloadObj.payload.payment.entity.customer_id;
+        
+        if (tokenId && customerId) {
+           await User.updateOne(
+             { 'buyerConfig.razorpayCustomerId': customerId },
+             { $set: { 'buyerConfig.paymentToken': tokenId, 'buyerConfig.isPaymentLinked': true } }
+           );
+           console.log(`[Webhook] Saved Token ${tokenId} for Customer ${customerId}`);
+        }
       }
 
       if (!orderId) {
@@ -40,7 +52,7 @@ export const handleRazorpayWebhook = async (req, res) => {
       
       const log = await AuditLog.findOne({ razorpayOrderId: orderId });
       if (!log) {
-        console.error('Webhook received for unknown order:', orderId);
+        // Could be a standalone 1 INR token registration order, just ignore if not in AuditLog
         return res.status(200).send('OK');
       }
 

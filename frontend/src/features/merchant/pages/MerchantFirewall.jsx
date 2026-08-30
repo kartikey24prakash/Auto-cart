@@ -30,7 +30,7 @@ export default function MerchantFirewall() {
     setSaving(true);
     setSaved(false);
     try {
-      await apiClient.post('/api/dashboard/config', {
+      await apiClient.put('/api/dashboard/config', {
         firewallRules: { autoApproveUnder: autoApprove, require2FAOver: require2FA, blockOver: 50000 }
       });
       setSaved(true);
