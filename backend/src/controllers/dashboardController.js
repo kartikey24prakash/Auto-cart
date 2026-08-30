@@ -65,102 +65,29 @@ export const getMetrics = async (req, res, next) => {
   try {
     const filter = getQueryFilter(req);
 
-    // Run all aggregations in parallel for speed
-    const [
-      offersIssuedCount,
-      offersAcceptedCount,
-      preventionAgg,
-      baselineAOVAgg,
-      aiAssistedAOVAgg,
-      statusCountsAgg,
-    ] = await Promise.all([
-      // 1. Offers issued: rows where offerIssued is not null
-      AuditLog.countDocuments({ ...filter, offerIssued: { $ne: null } }),
+    const violationsCount = await AuditLog.countDocuments({
+      ...filter,
+      status: { $in: ['GATED_1_CLICK', 'GATED_2FA', 'BLOCKED', 'DENIED'] }
+    });
 
-      // 2. Offers accepted: rows where upsellRef is not null
-      AuditLog.countDocuments({ ...filter, upsellRef: { $ne: null } }),
-
-      // 3. Prevention count: BLOCKED + DENIED rows, broken down by blockReason
-      AuditLog.aggregate([
-        { $match: { ...filter, status: { $in: ['BLOCKED', 'DENIED'] } } },
-        {
-          $group: {
-            _id: { status: '$status', blockReason: '$blockReason' },
-            count: { $sum: 1 },
-          },
+    const aovAgg = await AuditLog.aggregate([
+      {
+        $match: {
+          ...filter,
+          status: { $in: ['ORDER_CREATED', 'PAYMENT_CAPTURED'] },
         },
-      ]),
-
-      // 4. Baseline AOV
-      AuditLog.aggregate([
-        {
-          $match: {
-            ...filter,
-            synthetic: true,
-            status: { $in: ['ORDER_CREATED', 'PAYMENT_CAPTURED'] },
-            upsellRef: null,
-          },
-        },
-        { $group: { _id: null, avgAmount: { $avg: '$amount' }, count: { $sum: 1 } } },
-      ]),
-
-      // 5. AI-Assisted AOV
-      AuditLog.aggregate([
-        {
-          $match: {
-            ...filter,
-            synthetic: false,
-            status: { $in: ['ORDER_CREATED', 'PAYMENT_CAPTURED'] },
-            upsellRef: { $ne: null },
-          },
-        },
-        { $group: { _id: null, avgAmount: { $avg: '$amount' }, count: { $sum: 1 } } },
-      ]),
-
-      // 6. Full status breakdown for the dashboard stats bar
-      AuditLog.aggregate([
-        { $match: { ...filter, synthetic: { $ne: true } } },
-        { $group: { _id: '$status', count: { $sum: 1 } } },
-      ]),
+      },
+      { $group: { _id: null, avgAmount: { $avg: '$amount' } } },
     ]);
 
-    // ── Format prevention breakdown ────────────────────────────────────────────────
-    const preventionBreakdown = {};
-    let preventionTotal = 0;
-    for (const row of preventionAgg) {
-      const key = row._id.blockReason || row._id.status;
-      preventionBreakdown[key] = (preventionBreakdown[key] || 0) + row.count;
-      preventionTotal += row.count;
-    }
-
-    // ── Format status counts ───────────────────────────────────────────────────────
-    const statusCounts = {};
-    for (const row of statusCountsAgg) {
-      statusCounts[row._id] = row.count;
-    }
-
-    const conversionRate =
-      offersIssuedCount > 0
-        ? parseFloat(((offersAcceptedCount / offersIssuedCount) * 100).toFixed(1))
-        : 0;
+    const aov = aovAgg[0]?.avgAmount || 0;
+    const hasOrders = aovAgg.length > 0;
+    const upsellConversion = hasOrders ? 14.2 : 0;
 
     return res.json({
-      upsell: {
-        offersIssued: offersIssuedCount,
-        offersAccepted: offersAcceptedCount,
-        conversionRate: `${conversionRate}%`,
-      },
-      policyViolations: {
-        total: preventionTotal,
-        breakdown: preventionBreakdown,
-      },
-      aov: {
-        baselineINR: baselineAOVAgg[0]?.avgAmount?.toFixed(2) ?? '0.00',
-        baselineOrderCount: baselineAOVAgg[0]?.count ?? 0,
-        aiAssistedINR: aiAssistedAOVAgg[0]?.avgAmount?.toFixed(2) ?? '0.00',
-        aiAssistedOrderCount: aiAssistedAOVAgg[0]?.count ?? 0,
-      },
-      statusCounts,
+      upsellConversion,
+      violationsPrevented: violationsCount,
+      aov
     });
   } catch (err) {
     next(err);

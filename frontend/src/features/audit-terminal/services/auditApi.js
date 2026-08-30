@@ -10,9 +10,9 @@ export const auditApi = {
     const response = await apiClient.get('/api/dashboard/metrics');
     const data = response.data;
     return {
-      upsellConversion: data.upsell?.conversionRate?.replace('%', '') || 0,
-      violationsPrevented: data.policyViolations?.total || 0,
-      aov: parseFloat(data.aov?.aiAssistedINR || 0) || parseFloat(data.aov?.baselineINR || 0),
+      upsellConversion: data.upsellConversion || 0,
+      violationsPrevented: data.violationsPrevented || 0,
+      aov: data.aov || 0,
     };
   }
 };
