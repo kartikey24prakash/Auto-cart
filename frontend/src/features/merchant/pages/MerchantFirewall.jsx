@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { ShieldAlert, Sliders } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { ShieldAlert, Sliders, Check, Shield } from 'lucide-react';
 import apiClient from '@/shared/services/apiClient';
 
 export default function MerchantFirewall() {
@@ -10,10 +8,11 @@ export default function MerchantFirewall() {
   const [require2FA, setRequire2FA] = useState(5000);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     apiClient.get('/api/dashboard/config').then(res => {
-      const rules = res.data.config.firewallRules;
+      const rules = res.data.config?.firewallRules;
       if (rules) {
         setAutoApprove(rules.autoApproveUnder || 500);
         setRequire2FA(rules.require2FAOver || 5000);
@@ -27,26 +26,25 @@ export default function MerchantFirewall() {
 
   const handleSave = async () => {
     setSaving(true);
+    setSaved(false);
     try {
-      await apiClient.put('/api/dashboard/config', {
-        firewallRules: {
-          autoApproveUnder: Number(autoApprove),
-          require2FAOver: Number(require2FA)
-        }
+      await apiClient.post('/api/dashboard/config', {
+        firewallRules: { autoApproveUnder: autoApprove, require2FAOver: require2FA, blockOver: 50000 }
       });
-      alert('Firewall Rules Saved!');
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
     } catch (err) {
-      alert('Failed to save.');
+      console.error(err);
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) return <DashboardLayout role="merchant"><div className="p-8">Loading rules...</div></DashboardLayout>;
+  if (loading) return <DashboardLayout role="merchant"><div className="p-8 text-white">Loading rules...</div></DashboardLayout>;
 
   return (
     <DashboardLayout role="merchant">
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-700">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-zinc-50">Firewall Rules</h1>
           <p className="text-zinc-400 mt-1">Configure exactly how AI purchases interact with your store.</p>

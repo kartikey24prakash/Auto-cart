@@ -177,6 +177,16 @@ export const approveTransaction = async (req, res) => {
     const log = await AuditLog.findOne({ auditId });
     if (!log) return res.status(404).json({ error: 'Not found' });
     
+    // Check if already approved/paid to prevent overwriting status
+    if (log.status === 'PAYMENT_CAPTURED') {
+       return res.status(400).json({ error: 'Transaction already paid' });
+    }
+    if (log.status === 'ORDER_CREATED' && log.razorpayOrderId) {
+       const merchant = await User.findOne({ userId: log.merchantId });
+       const rzpKeyId = merchant?.merchantConfig?.razorpayKeyId || process.env.RAZORPAY_KEY_ID;
+       return res.json({ success: true, status: 'ORDER_CREATED', razorpayOrderId: log.razorpayOrderId, amount: log.amount, keyId: rzpKeyId });
+    }
+
     const merchant = await User.findOne({ userId: log.merchantId });
     if (!merchant) return res.status(404).json({ error: 'Merchant not found' });
 
