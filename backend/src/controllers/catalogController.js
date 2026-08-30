@@ -26,7 +26,7 @@ export const searchCatalog = async (req, res) => {
             enrichedResults.push({
                 ...p,
                 trustScore: merchant.merchantConfig.trustScore,
-                merchantName: merchant.fullName || 'Verified Merchant',
+                merchantName: merchant.merchantConfig?.merchantName || merchant.fullName || 'Verified Merchant',
                 merchantUrl: merchant.merchantConfig.webhookUrl || `http://localhost:5000/autocart`
             });
         }

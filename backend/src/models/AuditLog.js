@@ -22,6 +22,8 @@ const auditLogSchema = new mongoose.Schema(
     
     // Core transaction details
     sku: { type: String, required: true },
+    productName: { type: String, default: null },
+    merchantName: { type: String, default: null },
     qty: { type: Number, required: true, min: 1 },
     amount: { type: Number, required: true, min: 0 },
     reason: { type: String },

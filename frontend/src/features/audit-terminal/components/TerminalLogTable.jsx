@@ -53,7 +53,10 @@ export default function TerminalLogTable() {
                       {log.agentId || log.buyerId ? (log.agentId || log.buyerId).substring(0, 8) + '...' : log.ipAddress || 'Unknown'}
                     </span>
                   </td>
-                  <td className="px-6 py-3 font-medium text-foreground">{log.sku || log.actionType}</td>
+                  <td className="px-6 py-3 font-medium text-foreground">
+                    <div>{log.productName || log.sku || log.actionType}</div>
+                    {log.merchantName && <div className="text-xs text-muted-foreground">sold by {log.merchantName}</div>}
+                  </td>
                   <td className="px-6 py-3 font-mono text-foreground">{formatCurrency(log.amount)}</td>
                   <td className="px-6 py-3">
                     {log.shippingAddress ? (

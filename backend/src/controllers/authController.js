@@ -7,7 +7,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_change_in_producti
 
 export const register = async (req, res) => {
   try {
-    const { email, password, role } = req.body;
+    const { email, password, role, merchantName } = req.body;
 
     if (!email || !password || !role) {
       return res.status(400).json({ error: 'Email, password, and role are required.' });
@@ -30,6 +30,7 @@ export const register = async (req, res) => {
     
     if (role.toUpperCase() === 'MERCHANT') {
       merchantConfig = {
+        merchantName: merchantName || 'New Merchant',
         merchantKey: `merch_${uuidv4().replace(/-/g, '')}`,
         merchantSecret: `sec_${uuidv4().replace(/-/g, '')}`,
         firewallRules: { autoApproveUnder: 500, require2FAOver: 5000 }

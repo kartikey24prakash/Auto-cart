@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import Razorpay from 'razorpay';
 import { User } from '../models/User.js';
 import { AuditLog } from '../models/AuditLog.js';
+import { Product } from '../models/Product.js';
 import { v4 as uuidv4 } from 'uuid';
 
 // Helper to verify the HMAC signature from the SDK
@@ -65,6 +66,10 @@ const createRazorpayOrder = async (merchant, amount, receiptId) => {
         return res.status(403).json({ error: 'Invalid payload signature' });
       }
   
+      const product = await Product.findOne({ sku });
+      const productName = product ? product.name : sku;
+      const merchantName = merchant.merchantConfig?.merchantName || merchant.email || 'Verified Merchant';
+
       // 3. Authenticate Buyer
       const buyer = await User.findOne({ 'buyerConfig.buyerKey': buyerKey, role: 'BUYER' });
       if (!buyer) return res.status(401).json({ error: 'Invalid x-buyer-key credentials' });
@@ -90,7 +95,7 @@ const createRazorpayOrder = async (merchant, amount, receiptId) => {
       if (buyer.buyerConfig.spentToday + lineTotal > buyer.buyerConfig.dailyBudgetLimit) {
         const log = await AuditLog.create({
           auditId: `aud_${uuidv4()}`,
-          buyerId: buyer.userId, merchantId: merchant.userId, sku, qty, amount: lineTotal,
+          buyerId: buyer.userId, merchantId: merchant.userId, sku, productName, merchantName, qty, amount: lineTotal,
           status: 'GATED_1_CLICK', blockReason: 'daily_limit_exceeded',
           idempotencyKey, sdkSignature: signature, shippingAddress: defaultShipping
         });
@@ -128,7 +133,7 @@ const createRazorpayOrder = async (merchant, amount, receiptId) => {
           await buyer.save();
 
           const log = await AuditLog.create({
-            auditId, buyerId: buyer.userId, merchantId: merchant.userId, sku, qty, amount: lineTotal,
+            auditId, buyerId: buyer.userId, merchantId: merchant.userId, sku, productName, merchantName, qty, amount: lineTotal,
             status: 'PAYMENT_CAPTURED',
             idempotencyKey, sdkSignature: signature, shippingAddress: defaultShipping,
             razorpayOrderId,
@@ -149,7 +154,7 @@ const createRazorpayOrder = async (merchant, amount, receiptId) => {
     }
 
     const log = await AuditLog.create({
-      auditId, buyerId: buyer.userId, merchantId: merchant.userId, sku, qty, amount: lineTotal,
+      auditId, buyerId: buyer.userId, merchantId: merchant.userId, sku, productName, merchantName, qty, amount: lineTotal,
       status: verdict === 'AUTO_APPROVED' ? 'ORDER_CREATED' : verdict,
       idempotencyKey, sdkSignature: signature, shippingAddress: defaultShipping,
       razorpayOrderId

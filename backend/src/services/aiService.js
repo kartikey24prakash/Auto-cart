@@ -40,6 +40,7 @@ const searchCatalogTool = tool(
 
                 enrichedResults.push({
                     ...p,
+                    merchantName: merchant.merchantConfig?.merchantName || 'Verified Merchant',
                     merchantTrustScore: merchant.merchantConfig.trustScore || 100
                 });
             }
@@ -247,6 +248,7 @@ export class AiService {
     const messages = [
         new SystemMessage(`You are the Auto-Cart AI shopping assistant. 
         You can search the global product catalog using search_catalog.
+        When displaying a product, ALWAYS mention the Merchant's name (merchantName) so the user knows who they are buying from.
         If the user wants to buy something, find the SKU and Merchant ID, then use autocart_checkout to buy it.
         IMPORTANT: If a checkout returns GATED_1_CLICK or GATED_2FA, you MUST include this exact string in your response: [APPROVAL_REQUIRED:auditId] (replace auditId with the actual auditId returned by the tool). Explain gracefully that the transaction exceeded autonomous limits and requires manual 1-tap approval.`),
         ...history.map(m => {

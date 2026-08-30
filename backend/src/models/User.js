@@ -35,6 +35,7 @@ const userSchema = new mongoose.Schema(
 
     // Config for MERCHANT role
     merchantConfig: {
+      merchantName: { type: String, default: null },
       merchantKey: { type: String, unique: true, sparse: true },
       merchantSecret: { type: String }, // Used to verify HMAC SHA256 signatures from the SDK
       razorpayKeyId: { type: String },

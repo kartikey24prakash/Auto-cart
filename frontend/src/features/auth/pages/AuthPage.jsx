@@ -59,10 +59,11 @@ export default function AuthPage() {
     
     const email = e.target.email.value;
     const password = e.target.password.value;
+    const merchantName = !isLogin && role === 'merchant' ? e.target.merchantName?.value : undefined;
     
     if (!isLogin) {
-      const confirm = e.target.confirm.value;
-      if (password !== confirm) {
+      const confirmPassword = e.target.confirm?.value;
+      if (password !== confirmPassword) {
         setError('Passwords do not match');
         setLoading(false);
         return;
@@ -74,7 +75,8 @@ export default function AuthPage() {
       const response = await apiClient.post(endpoint, {
         email,
         password,
-        role: role.toUpperCase() // BUYER or MERCHANT
+        role: role.toUpperCase(), // BUYER or MERCHANT
+        merchantName
       });
       
       const { token, user } = response.data;
@@ -85,7 +87,8 @@ export default function AuthPage() {
         email: user.email,
         role: user.role.toLowerCase(),
         merchantKey: user.merchantKey,
-        buyerKey: user.buyerKey
+        buyerKey: user.buyerKey,
+        merchantName: user.merchantName
       };
       
       login(sessionUserData, token);
@@ -182,7 +185,13 @@ export default function AuthPage() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              {!isLogin && role === 'merchant' && (
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="merchantName" className="text-xs">Merchant Name</Label>
+                  <Input id="merchantName" placeholder="e.g. Snitch Premium" required />
+                </div>
+              )}
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="email" className="text-xs">Email</Label>
                 <Input id="email" type="email" placeholder="you@company.com" autoComplete="email" required />
