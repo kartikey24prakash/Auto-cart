@@ -78,14 +78,28 @@ export default function BuyerCommandCenter() {
                   <div className="font-medium text-zinc-100">{log.productName || log.sku}</div>
                   <div className="text-xs text-zinc-400 mt-0.5">{log.merchantName || 'Merchant'}</div>
                 </div>
-                <div className="text-right">
+                <div className="text-right flex flex-col items-end gap-1">
                   <div className="font-semibold text-zinc-50">₹{log.amount?.toLocaleString()}</div>
-                  <div className={`text-[10px] font-bold mt-1 px-2 py-0.5 rounded-full inline-block ${
-                    log.status === 'PAYMENT_CAPTURED' ? 'bg-emerald-500/10 text-emerald-400' :
-                    log.status.includes('GATED') ? 'bg-orange-500/10 text-orange-400' :
-                    'bg-zinc-800 text-zinc-400'
-                  }`}>
-                    {log.status.replace(/_/g, ' ')}
+                  <div className="flex items-center gap-1">
+                    <div className={`text-[9px] font-bold px-2 py-0.5 rounded-full inline-block ${
+                      log.status === 'PAYMENT_CAPTURED' ? 'bg-emerald-500/10 text-emerald-400' :
+                      log.status.includes('GATED') ? 'bg-orange-500/10 text-orange-400' :
+                      'bg-zinc-800 text-zinc-400'
+                    }`}>
+                      {log.status.replace(/_/g, ' ')}
+                    </div>
+                    
+                    {log.status === 'PAYMENT_CAPTURED' && (
+                      <div className={`text-[9px] font-bold px-2 py-0.5 rounded-full inline-block ${
+                        log.deliveryStatus === 'DELIVERED' ? 'bg-blue-500/10 text-blue-400' :
+                        log.deliveryStatus === 'IN_TRANSIT' ? 'bg-purple-500/10 text-purple-400' :
+                        log.deliveryStatus === 'DISPATCHED' ? 'bg-orange-500/10 text-orange-400' :
+                        log.deliveryStatus === 'PREPARING' ? 'bg-yellow-500/10 text-yellow-400' :
+                        'bg-zinc-800 text-zinc-400'
+                      }`}>
+                        {log.deliveryStatus || 'PENDING'}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

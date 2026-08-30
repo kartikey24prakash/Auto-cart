@@ -272,3 +272,32 @@ export const updateMerchantConfig = async (req, res, next) => {
   }
 };
 
+
+// PUT /api/dashboard/orders/:auditId/delivery - Update fulfillment status
+export const updateDeliveryStatus = async (req, res, next) => {
+  try {
+    if (req.user.role.toUpperCase() !== 'MERCHANT') {
+      return res.status(403).json({ error: 'Only merchants can manage fulfillment.' });
+    }
+
+    const { auditId } = req.params;
+    const { deliveryStatus } = req.body;
+
+    const validStatuses = ['PENDING', 'PREPARING', 'DISPATCHED', 'IN_TRANSIT', 'DELIVERED'];
+    if (!validStatuses.includes(deliveryStatus)) {
+      return res.status(400).json({ error: 'Invalid delivery status.' });
+    }
+
+    const order = await AuditLog.findOne({ auditId, merchantId: req.user.userId });
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found.' });
+    }
+
+    order.deliveryStatus = deliveryStatus;
+    await order.save();
+
+    res.json({ success: true, order });
+  } catch (err) {
+    next(err);
+  }
+};

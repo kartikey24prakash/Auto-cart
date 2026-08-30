@@ -36,6 +36,11 @@ const auditLogSchema = new mongoose.Schema(
       postalCode: String,
       country: String
     },
+    deliveryStatus: {
+      type: String,
+      enum: ['PENDING', 'PREPARING', 'DISPATCHED', 'IN_TRANSIT', 'DELIVERED'],
+      default: 'PENDING'
+    },
 
     // State & Security
     status: { type: String, enum: STATUS_VALUES, required: true, default: 'PENDING' },

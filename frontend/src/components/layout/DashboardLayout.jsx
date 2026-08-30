@@ -4,7 +4,7 @@ import {
   Search, LayoutDashboard, FolderKanban, Users, Settings, LogOut,
   Hash, ChevronDown, ChevronRight, Inbox, Calendar, Activity,
   CreditCard, Globe, Terminal, Blocks, PanelLeftClose, PanelLeftOpen,
-  Command, X, ShoppingCart, ClipboardList, Shield, ShieldCheck, Key, Bot, Database
+  Command, X, ShoppingCart, ClipboardList, Shield, ShieldCheck, Key, Bot, Database, Package
 } from 'lucide-react';
 import { useSession } from '@/shared/state/SessionContext';
 
@@ -28,6 +28,7 @@ const merchantGroups = [
     items: [
       { id: 'search', title: 'Search', icon: Search, shortcut: '⌘K' },
       { id: '/merchant', title: 'Overview', icon: LayoutDashboard },
+      { id: '/merchant/orders', title: 'Fulfillment', icon: Package },
       { id: '/merchant/agent', title: 'Shopping Agent', icon: Bot },
       { id: '/merchant/traffic', title: 'AI Traffic', icon: Activity },
     ]
