@@ -18,6 +18,7 @@ export const createChat = async (req, res) => {
     const chat = await Chat.create({ userId });
     res.status(201).json({ chat });
   } catch (error) {
+    console.error('[createChat Error]', error);
     res.status(500).json({ error: error.message });
   }
 };

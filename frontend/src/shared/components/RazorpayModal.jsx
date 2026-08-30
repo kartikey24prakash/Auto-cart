@@ -80,9 +80,10 @@ export default function RazorpayModal({ isOpen, onClose, orderDetails, onProcess
   };
 
   const resetAndClose = () => {
+    const wasSuccess = paymentStep === 'success';
     setPaymentStep('select');
     onClose();
-    if (onProcessed) onProcessed();
+    if (onProcessed) onProcessed(wasSuccess);
   };
 
   return (
