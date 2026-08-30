@@ -4,7 +4,7 @@ import {
   Search, LayoutDashboard, FolderKanban, Users, Settings, LogOut,
   Hash, ChevronDown, ChevronRight, Inbox, Calendar, Activity,
   CreditCard, Globe, Terminal, Blocks, PanelLeftClose, PanelLeftOpen,
-  Command, X, ShoppingCart, ClipboardList, Shield, Key, Bot
+  Command, X, ShoppingCart, ClipboardList, Shield, ShieldCheck, Key, Bot, Database
 } from 'lucide-react';
 import { useSession } from '@/shared/state/SessionContext';
 
@@ -14,7 +14,7 @@ const buyerGroups = [
     heading: 'Workspace',
     items: [
       { id: '/buyer', title: 'Command Center', icon: LayoutDashboard },
-      { id: '/buyer/agent', title: 'AI Agent', icon: Bot },
+      { id: '/buyer/agent', title: 'Shopping Agent', icon: Bot },
       { id: '/buyer/approvals', title: 'Approval Inbox', icon: ClipboardList },
       { id: '/buyer/receipts', title: 'Privacy Receipts', icon: ShoppingCart },
       { id: '/buyer/settings', title: 'Mandates & Delivery', icon: Settings },
@@ -24,25 +24,20 @@ const buyerGroups = [
 
 const merchantGroups = [
   {
-    heading: '',
+    heading: 'Business',
     items: [
       { id: 'search', title: 'Search', icon: Search, shortcut: '⌘K' },
       { id: '/merchant', title: 'Overview', icon: LayoutDashboard },
-      { id: '/merchant/agent', title: 'AI Agent', icon: Bot },
+      { id: '/merchant/agent', title: 'Shopping Agent', icon: Bot },
       { id: '/merchant/traffic', title: 'AI Traffic', icon: Activity },
     ]
   },
   {
-    heading: 'Management',
+    heading: 'Trust Engine',
     items: [
-      { id: '/merchant/catalog', title: 'Catalog', icon: FolderKanban },
-      { id: '/merchant/firewall', title: 'Firewall', icon: Shield },
-    ]
-  },
-  {
-    heading: 'Developers',
-    items: [
-      { id: '/merchant/keys', title: 'API Keys', icon: Terminal },
+      { id: '/merchant/catalog', title: 'Auto-Cart Sync', icon: Database },
+      { id: '/merchant/firewall', title: 'Firewall Policies', icon: ShieldCheck },
+      { id: '/merchant/keys', title: 'API Keys', icon: Key },
     ]
   }
 ];
@@ -51,9 +46,9 @@ const bottomItems = [
   { id: 'settings', title: 'Settings', icon: Settings, shortcut: '⌘,' },
 ];
 
-function WorkspaceSwitcher({ role, selected, onSelect }) {
+function WorkspaceSwitcher({ role, selected, onSelect, displayName }) {
   const [isOpen, setIsOpen] = useState(false);
-  const current = selected || (role === 'buyer' ? 'Personal Account' : 'Acme Corp');
+  const current = selected || displayName;
   
   return (
     <div className="relative">
@@ -77,11 +72,11 @@ function WorkspaceSwitcher({ role, selected, onSelect }) {
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
           <div className="absolute top-[52px] left-0 w-full bg-zinc-900/30 backdrop-blur-xl border border-zinc-800/50 rounded-lg shadow-2xl shadow-black/50 z-50 py-1 flex flex-col gap-0.5 animate-in fade-in zoom-in-95 duration-100">
-            {['Acme Corp', 'Personal Workspace'].map(ws => (
+            {[displayName, 'Personal Workspace'].map(ws => (
               <div 
                 key={ws}
                 onClick={() => { onSelect?.(ws); setIsOpen(false); }}
-                className={`px-3 py-2 mx-1 text-[13px] rounded-md cursor-pointer transition-colors ${current === ws ? 'bg-zinc-50 text-zinc-950/10 text-zinc-50 font-medium' : 'text-zinc-50/80 hover:bg-zinc-800/80'}`}
+                className={`px-3 py-2 mx-1 text-[13px] rounded-md cursor-pointer transition-colors ${current === ws ? 'bg-white/10 text-zinc-50 font-medium' : 'text-zinc-50/80 hover:bg-zinc-800/80'}`}
               >
                 {ws}
               </div>
@@ -178,12 +173,12 @@ function NavItem({ item, activeId, onSelect, level = 0 }) {
   );
 }
 
-function SidebarNav({ role, activeId, onSelect, activeWorkspace, onWorkspaceSelect, onLogout, dynamicBuyerGroups, dynamicMerchantGroups }) {
+function SidebarNav({ role, activeId, onSelect, activeWorkspace, onWorkspaceSelect, onLogout, dynamicBuyerGroups, dynamicMerchantGroups, displayName }) {
   const groups = role === 'buyer' ? dynamicBuyerGroups : dynamicMerchantGroups;
 
   return (
     <div className={`flex flex-col w-[260px] h-full bg-zinc-950 border-zinc-900 border-r border-zinc-800/50 p-3 font-sans`}>
-      <WorkspaceSwitcher role={role} selected={activeWorkspace} onSelect={onWorkspaceSelect} />
+      <WorkspaceSwitcher role={role} selected={activeWorkspace} onSelect={onWorkspaceSelect} displayName={displayName} />
 
       <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] flex flex-col gap-4 mt-2">
         {groups.map((group, idx) => (
@@ -232,10 +227,16 @@ function SidebarNav({ role, activeId, onSelect, activeWorkspace, onWorkspaceSele
 export default function DashboardLayout({ children, role = 'buyer' }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useSession();
+  const { user, logout } = useSession();
   
   const [isOpen, setIsOpen] = useState(true);
-  const [activeWorkspace, setActiveWorkspace] = useState(role === 'buyer' ? 'Personal Account' : 'Acme Corp');
+  
+  // Calculate display name based on role
+  const displayName = user?.role === 'MERCHANT' 
+    ? (user?.merchantName || 'My Merchant') 
+    : (user?.email?.split('@')[0] || 'Personal Account');
+    
+  const [activeWorkspace, setActiveWorkspace] = useState(displayName);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [dynamicBuyerGroups, setDynamicBuyerGroups] = useState(buyerGroups);
   const [dynamicMerchantGroups, setDynamicMerchantGroups] = useState(merchantGroups);
@@ -256,12 +257,12 @@ export default function DashboardLayout({ children, role = 'buyer' }) {
           if (role === 'buyer') {
             setDynamicBuyerGroups(prev => prev.map(group => ({
               ...group,
-              items: group.items.map(item => item.title === 'AI Agent' ? { ...item, id: '/buyer/agent', children: newChildren } : item)
+              items: group.items.map(item => item.title === 'Shopping Agent' ? { ...item, id: '/buyer/agent', children: newChildren } : item)
             })));
           } else {
             setDynamicMerchantGroups(prev => prev.map(group => ({
               ...group,
-              items: group.items.map(item => item.title === 'AI Agent' ? { ...item, id: '/merchant/agent', children: newChildren } : item)
+              items: group.items.map(item => item.title === 'Shopping Agent' ? { ...item, id: '/merchant/agent', children: newChildren } : item)
             })));
           }
         }
@@ -317,6 +318,7 @@ export default function DashboardLayout({ children, role = 'buyer' }) {
           activeWorkspace={activeWorkspace}
           onWorkspaceSelect={setActiveWorkspace}
           onLogout={handleLogout}
+          displayName={displayName}
         />
       </div>
       
@@ -360,32 +362,88 @@ export default function DashboardLayout({ children, role = 'buyer' }) {
          </div>
       </div>
 
-      {/* Global Command Palette / Search */}
-      {isSearchOpen && (
-        <div className="absolute inset-0 z-50 flex items-start justify-center pt-[15vh] bg-zinc-950/80 backdrop-blur-sm px-4">
-          <div className="absolute inset-0" onClick={() => setIsSearchOpen(false)} />
-          <div className="relative w-full max-w-xl bg-zinc-900/30 backdrop-blur-xl border border-zinc-800/50 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center px-4 border-b border-zinc-800/50">
-              <Search className="w-[18px] h-[18px] text-zinc-400/70 mr-3 shrink-0" strokeWidth={1.5} />
-              <input 
-                autoFocus
-                className="flex-1 bg-transparent py-4 outline-none text-[14px] text-zinc-50 placeholder:text-zinc-400/50"
-                placeholder="Search projects, logs, or keys..."
-              />
-              <kbd 
-                onClick={() => setIsSearchOpen(false)}
-                className="hidden sm:inline-flex items-center justify-center h-5 px-1.5 ml-2 text-[10px] font-medium font-mono text-zinc-400/70 bg-zinc-900/50 border border-zinc-700 rounded-[4px] cursor-pointer hover:text-zinc-50 hover:bg-zinc-700 transition-colors"
-              >
-                ESC
-              </kbd>
-            </div>
-            <div className="p-2 py-8 flex flex-col items-center justify-center">
-               <Command className="w-6 h-6 text-zinc-400/30 mb-2" strokeWidth={1.5} />
-               <p className="text-[13px] text-zinc-400 font-medium">Type a command or search...</p>
-            </div>
-          </div>
+      <CommandPalette 
+        role={role} 
+        isOpen={isSearchOpen} 
+        onClose={() => setIsSearchOpen(false)} 
+        navigate={navigate} 
+      />
+    </div>
+  );
+}
+
+function CommandPalette({ role, isOpen, onClose, navigate }) {
+  const [query, setQuery] = useState('');
+  
+  if (!isOpen) return null;
+
+  const getCommands = () => {
+    let commands = [];
+    if (role === 'merchant') {
+      commands = [
+        { name: 'Go to Overview', path: '/merchant/overview' },
+        { name: 'Go to Auto-Cart Sync', path: '/merchant/catalog' },
+        { name: 'Go to Firewall Policies', path: '/merchant/firewall' },
+        { name: 'Go to AI Traffic Log', path: '/merchant/traffic' },
+        { name: 'Go to API Keys', path: '/merchant/keys' },
+      ];
+    } else {
+      commands = [
+        { name: 'Go to Command Center', path: '/buyer/dashboard' },
+        { name: 'Go to Shopping Agent', path: '/buyer/agent' },
+        { name: 'Go to Approval Inbox', path: '/buyer/approvals' },
+        { name: 'Go to Privacy Receipts', path: '/buyer/receipts' },
+        { name: 'Go to Settings', path: '/buyer/settings' },
+      ];
+    }
+    
+    if (!query) return commands;
+    return commands.filter(c => c.name.toLowerCase().includes(query.toLowerCase()));
+  };
+
+  const results = getCommands();
+
+  return (
+    <div className="absolute inset-0 z-50 flex items-start justify-center pt-[15vh] bg-zinc-950/80 backdrop-blur-sm px-4">
+      <div className="absolute inset-0" onClick={onClose} />
+      <div className="relative w-full max-w-xl bg-zinc-900/30 backdrop-blur-xl border border-zinc-800/50 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex items-center px-4 border-b border-zinc-800/50">
+          <Search className="w-[18px] h-[18px] text-zinc-400/70 mr-3 shrink-0" strokeWidth={1.5} />
+          <input 
+            autoFocus
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="flex-1 bg-transparent py-4 outline-none text-[14px] text-zinc-50 placeholder:text-zinc-400/50"
+            placeholder="Search commands, pages, or features..."
+          />
+          <kbd 
+            onClick={onClose}
+            className="hidden sm:inline-flex items-center justify-center h-5 px-1.5 ml-2 text-[10px] font-medium font-mono text-zinc-400/70 bg-zinc-900/50 border border-zinc-700 rounded-[4px] cursor-pointer hover:text-zinc-50 hover:bg-zinc-700 transition-colors"
+          >
+            ESC
+          </kbd>
         </div>
-      )}
+        
+        <div className="max-h-[300px] overflow-y-auto p-2">
+          {results.length > 0 ? (
+            results.map((item, idx) => (
+              <div 
+                key={idx}
+                onClick={() => { navigate(item.path); onClose(); }}
+                className="flex items-center px-3 py-2.5 text-[13px] text-zinc-300 hover:text-zinc-50 hover:bg-white/5 rounded-lg cursor-pointer transition-colors"
+              >
+                <Command className="w-4 h-4 mr-3 text-zinc-500" />
+                {item.name}
+              </div>
+            ))
+          ) : (
+            <div className="py-8 flex flex-col items-center justify-center">
+              <Command className="w-6 h-6 text-zinc-400/30 mb-2" strokeWidth={1.5} />
+              <p className="text-[13px] text-zinc-400 font-medium">No results found.</p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

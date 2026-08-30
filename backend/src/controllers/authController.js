@@ -60,6 +60,7 @@ export const register = async (req, res) => {
         userId: newUser.userId,
         email: newUser.email,
         role: newUser.role,
+        merchantName: newUser.merchantConfig?.merchantName,
         merchantKey: newUser.merchantConfig?.merchantKey,
         buyerKey: newUser.buyerConfig?.buyerKey
       }
@@ -96,8 +97,9 @@ export const login = async (req, res) => {
         userId: user.userId,
         email: user.email,
         role: user.role,
-        merchantKey: user.merchantConfig?.merchantKey,
-        buyerKey: user.buyerConfig?.buyerKey
+        merchantName: user.merchantConfig?.merchantName,
+        buyerKey: user.buyerConfig?.buyerKey,
+        merchantKey: user.merchantConfig?.merchantKey
       }
     });
   } catch (error) {

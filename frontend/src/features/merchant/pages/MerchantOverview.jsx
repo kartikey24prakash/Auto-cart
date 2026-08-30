@@ -6,24 +6,54 @@ import apiClient from '@/shared/services/apiClient';
 
 export default function MerchantOverview() {
   const [config, setConfig] = useState(null);
+  const [stats, setStats] = useState({
+    captured: 0,
+    gated: 0,
+    blocked: 0,
+    totalSales: 0
+  });
+  const [recentLogs, setRecentLogs] = useState([]);
 
   useEffect(() => {
-    const fetchConfig = async () => {
+    const fetchData = async () => {
       try {
-        const configRes = await apiClient.get('/api/dashboard/config');
+        const [configRes, logsRes] = await Promise.all([
+          apiClient.get('/api/dashboard/config'),
+          apiClient.get('/api/dashboard/logs')
+        ]);
         setConfig(configRes.data.config);
+        
+        const logs = logsRes.data.logs || [];
+        let captured = 0;
+        let gated = 0;
+        let blocked = 0;
+        let totalSales = 0;
+        
+        logs.forEach(log => {
+          if (log.status === 'PAYMENT_CAPTURED' || log.status === 'ORDER_CREATED') {
+            captured++;
+            if (log.status === 'PAYMENT_CAPTURED') totalSales += log.amount;
+          } else if (log.status.includes('GATED')) {
+            gated++;
+          } else if (log.status === 'BLOCKED' || log.status === 'DENIED') {
+            blocked++;
+          }
+        });
+        
+        setStats({ captured, gated, blocked, totalSales });
+        setRecentLogs(logs.slice(0, 5));
       } catch (err) {
         console.error(err);
       }
     };
-    fetchConfig();
+    fetchData();
   }, []);
 
   const statCards = [
-    { label: 'Approved & Captured', value: '14,208', color: 'text-emerald-400', icon: ShieldCheck },
-    { label: 'Gated (Waiting)', value: '31', color: 'text-yellow-400', icon: Zap },
-    { label: 'Blocked / Denied', value: '412', color: 'text-red-400', icon: Activity },
-    { label: 'AI Assisted Sales', value: '₹2.4M', color: 'text-blue-400', icon: TrendingUp },
+    { label: 'Approved & Captured', value: stats.captured.toLocaleString(), color: 'text-emerald-400', icon: ShieldCheck },
+    { label: 'Gated (Waiting)', value: stats.gated.toLocaleString(), color: 'text-yellow-400', icon: Zap },
+    { label: 'Blocked / Denied', value: stats.blocked.toLocaleString(), color: 'text-red-400', icon: Activity },
+    { label: 'AI Assisted Sales', value: `₹${stats.totalSales.toLocaleString()}`, color: 'text-blue-400', icon: TrendingUp },
   ];
 
   const isVerified = config?.kycStatus === 'VERIFIED' && config?.razorpayLinkedAccountId;
@@ -75,15 +105,38 @@ export default function MerchantOverview() {
         </div>
 
         <div className="grid lg:grid-cols-2 gap-6">
-          <Card className="p-6 bg-[#09090b] border border-white/5 shadow-2xl">
-            <h3 className="text-lg font-bold text-white tracking-tight mb-4 flex items-center gap-2">
-              <Activity className="w-5 h-5 text-blue-400" />
-              Live Telemetry
-            </h3>
-            <div className="h-64 flex flex-col items-center justify-center border border-dashed border-white/10 rounded-xl bg-black/40 text-zinc-500 p-6 text-center shadow-inner">
-              <svg className="w-12 h-12 mb-4 text-zinc-700 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
-              <h4 className="text-zinc-300 font-semibold mb-2">Awaiting SDK Telemetry</h4>
-              <p className="text-sm">Install the AutoCart SDK on your external backend to unlock live traffic graphs and autonomous conversion charts.</p>
+          <Card className="p-0 bg-[#09090b] border border-white/5 shadow-2xl flex flex-col overflow-hidden">
+            <div className="p-6 border-b border-white/5">
+              <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+                <Activity className="w-5 h-5 text-blue-400" />
+                Live Telemetry
+              </h3>
+            </div>
+            <div className="flex-1 divide-y divide-white/5 overflow-y-auto">
+              {recentLogs.length > 0 ? recentLogs.map(log => (
+                <div key={log.auditId} className="p-4 hover:bg-white/[0.02] transition-colors flex justify-between items-center">
+                  <div>
+                    <div className="font-medium text-zinc-200">{log.productName || log.sku}</div>
+                    <div className="text-xs text-zinc-500 mt-0.5">{new Date(log.createdAt).toLocaleString()}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-semibold text-zinc-200">₹{log.amount?.toLocaleString()}</div>
+                    <div className={`text-[10px] font-bold mt-1 px-2 py-0.5 rounded-full inline-block ${
+                      log.status === 'PAYMENT_CAPTURED' ? 'bg-emerald-500/10 text-emerald-400' :
+                      log.status.includes('GATED') ? 'bg-yellow-500/10 text-yellow-400' :
+                      'bg-zinc-800 text-zinc-400'
+                    }`}>
+                      {log.status.replace(/_/g, ' ')}
+                    </div>
+                  </div>
+                </div>
+              )) : (
+                <div className="h-full flex flex-col items-center justify-center p-8 text-center text-zinc-500">
+                  <svg className="w-8 h-8 mb-3 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                  <h4 className="text-zinc-300 font-semibold mb-1 text-sm">No recent traffic</h4>
+                  <p className="text-xs">Your AI traffic logs will appear here in real-time.</p>
+                </div>
+              )}
             </div>
           </Card>
           

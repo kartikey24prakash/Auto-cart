@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { ShieldAlert, Sliders, Check, Shield } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import apiClient from '@/shared/services/apiClient';
 
 export default function MerchantFirewall() {
@@ -61,43 +63,91 @@ export default function MerchantFirewall() {
             </div>
           </div>
 
-          <div className="space-y-8 max-w-2xl">
+          <div className="space-y-10 max-w-2xl">
             <div className="space-y-4">
-              <div className="flex justify-between items-end">
+              <div className="flex justify-between items-end mb-4">
                 <div>
-                  <label className="text-sm font-medium text-zinc-50">Auto-Approve Threshold</label>
-                  <p className="text-xs text-zinc-400">Transactions under this amount bypass 2FA gating.</p>
+                  <label className="text-sm font-semibold text-zinc-50">Auto-Approve Threshold</label>
+                  <p className="text-xs text-zinc-400 mt-1">Transactions under this amount bypass all gating and are completely autonomous.</p>
                 </div>
-                <span className="text-xl font-mono font-bold text-emerald-400">₹{autoApprove}</span>
               </div>
-              <input type="range" min={100} max={5000} step={100} value={autoApprove}
-                onChange={e => setAutoApprove(e.target.value)} 
-                className="w-full h-1.5 rounded-full appearance-none cursor-pointer outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-emerald-400 [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(52,211,153,0.5)] [&::-webkit-slider-thumb]:transition-transform hover:[&::-webkit-slider-thumb]:scale-125"
-                style={{ background: `linear-gradient(to right, #34d399 ${(autoApprove - 100) / (5000 - 100) * 100}%, #27272a ${(autoApprove - 100) / (5000 - 100) * 100}%)` }}
-              />
+              <div className="flex flex-wrap gap-3 items-center">
+                {[100, 500, 1000, 2500, 5000].map(val => (
+                  <button
+                    key={val}
+                    onClick={() => setAutoApprove(val)}
+                    className={`px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-200 border ${
+                      autoApprove === val 
+                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.15)] ring-1 ring-emerald-500/20' 
+                        : 'bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+                    }`}
+                  >
+                    ₹{val.toLocaleString()}
+                  </button>
+                ))}
+                
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 font-medium">₹</span>
+                  <input 
+                    type="number"
+                    value={![100, 500, 1000, 2500, 5000].includes(autoApprove) ? autoApprove : ''}
+                    onChange={(e) => setAutoApprove(Number(e.target.value))}
+                    className={`w-28 pl-8 pr-4 py-2.5 rounded-full text-sm font-semibold outline-none transition-all duration-200 border ${
+                      ![100, 500, 1000, 2500, 5000].includes(autoApprove) && autoApprove > 0
+                        ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.15)] ring-1 ring-emerald-500/20 placeholder-emerald-400/50' 
+                        : 'bg-zinc-900/50 border-zinc-800 text-zinc-200 focus:border-emerald-500/50 placeholder-zinc-500'
+                    }`}
+                    placeholder="Custom"
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="space-y-4">
-              <div className="flex justify-between items-end">
+              <div className="flex justify-between items-end mb-4">
                 <div>
-                  <label className="text-sm font-medium text-zinc-50">Require 2FA Threshold</label>
-                  <p className="text-xs text-zinc-400">Transactions over this amount are aggressively blocked.</p>
+                  <label className="text-sm font-semibold text-zinc-50">Absolute Block Threshold</label>
+                  <p className="text-xs text-zinc-400 mt-1">Transactions over this amount are aggressively blocked to prevent AI fraud.</p>
                 </div>
-                <span className="text-xl font-mono font-bold text-orange-400">₹{require2FA}</span>
               </div>
-              <input type="range" min={1000} max={50000} step={500} value={require2FA}
-                onChange={e => setRequire2FA(e.target.value)} 
-                className="w-full h-1.5 rounded-full appearance-none cursor-pointer outline-none [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-orange-400 [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(251,146,60,0.5)] [&::-webkit-slider-thumb]:transition-transform hover:[&::-webkit-slider-thumb]:scale-125"
-                style={{ background: `linear-gradient(to right, #fb923c ${(require2FA - 1000) / (50000 - 1000) * 100}%, #27272a ${(require2FA - 1000) / (50000 - 1000) * 100}%)` }}
-              />
+              <div className="flex flex-wrap gap-3 items-center">
+                {[5000, 10000, 25000, 50000].map(val => (
+                  <button
+                    key={val}
+                    onClick={() => setRequire2FA(val)}
+                    className={`px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-200 border ${
+                      require2FA === val 
+                        ? 'bg-orange-500/10 border-orange-500/30 text-orange-400 shadow-[0_0_15px_rgba(251,146,60,0.15)] ring-1 ring-orange-500/20' 
+                        : 'bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'
+                    }`}
+                  >
+                    ₹{val.toLocaleString()}
+                  </button>
+                ))}
+                
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 font-medium">₹</span>
+                  <input 
+                    type="number"
+                    value={![5000, 10000, 25000, 50000].includes(require2FA) ? require2FA : ''}
+                    onChange={(e) => setRequire2FA(Number(e.target.value))}
+                    className={`w-28 pl-8 pr-4 py-2.5 rounded-full text-sm font-semibold outline-none transition-all duration-200 border ${
+                      ![5000, 10000, 25000, 50000].includes(require2FA) && require2FA > 0
+                        ? 'bg-orange-500/10 border-orange-500/30 text-orange-400 shadow-[0_0_15px_rgba(251,146,60,0.15)] ring-1 ring-orange-500/20 placeholder-orange-400/50' 
+                        : 'bg-zinc-900/50 border-zinc-800 text-zinc-200 focus:border-orange-500/50 placeholder-zinc-500'
+                    }`}
+                    placeholder="Custom"
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="p-4 rounded-lg bg-orange-500/10 border border-orange-500/20 flex gap-3 items-start mt-8">
               <ShieldAlert className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
               <div>
-                <h4 className="text-sm font-semibold text-orange-400 mb-1">Gating Zone Enabled</h4>
+                <h4 className="text-sm font-semibold text-orange-400 mb-1">1-Click Gating Zone</h4>
                 <p className="text-sm text-orange-300/80 leading-relaxed">
-                  Purchases between <strong className="text-orange-300">₹{autoApprove}</strong> and <strong className="text-orange-300">₹{require2FA}</strong> will be held in a <strong>GATED</strong> state. The buyer's AI will be paused until the human owner manually approves the invoice via a 1-click magic link.
+                  Purchases between <strong className="text-orange-300">₹{autoApprove}</strong> and <strong className="text-orange-300">₹{require2FA}</strong> will be held in a <strong>GATED</strong> state. The buyer's AI will be paused until the human owner manually approves the purchase via the 1-click inline button.
                 </p>
               </div>
             </div>
