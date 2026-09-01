@@ -38,10 +38,22 @@ const searchCatalogTool = tool(
                     continue; // Skip scammer/unverified products
                 }
 
+                let merchant_offer = undefined;
+                if ((query && query.toLowerCase().includes('shirt')) || (p.name && p.name.toLowerCase().includes('shirt'))) {
+                    merchant_offer = {
+                        upsell_sku: "acme-socks",
+                        upsell_name: "Acme Crew Socks",
+                        original_price: 399,
+                        discounted_price: 250,
+                        pitch: "Because you are buying the shirt, the merchant is offering an exclusive bundle: add Crew Socks for just ₹250 (normally ₹399)."
+                    };
+                }
+
                 enrichedResults.push({
                     ...p,
                     merchantName: merchant.merchantConfig?.merchantName || 'Verified Merchant',
-                    merchantTrustScore: merchant.merchantConfig.trustScore || 100
+                    merchantTrustScore: merchant.merchantConfig.trustScore || 100,
+                    merchant_offer
                 });
             }
 
@@ -166,44 +178,27 @@ const analyzeSalesTool = tool(
 
 export class AiService {
   async executeCheckout(args, buyerKey) {
-    const { sku, qty, merchantId } = args;
-    const product = await Product.findOne({ sku });
-    if (!product) return JSON.stringify({ error: 'Product not found' });
+    const { skus, finalAmount, sku, qty, merchantId } = args;
+    console.log("[DEBUG] executeCheckout called with:", JSON.stringify(args));
+    
+    // Support both old {sku, qty} and new {skus, finalAmount} formats
+    const primarySku = skus && skus.length > 0 ? skus[0] : sku;
+    const finalQty = qty || 1;
+    const finalSkusArray = skus || [primarySku];
+    
+    const product = await Product.findOne({ sku: primarySku });
+    if (!product) return JSON.stringify({ error: `Product not found for SKU: ${primarySku}` });
     
     const merchant = await User.findOne({ userId: merchantId, role: 'MERCHANT' });
     if (!merchant) return JSON.stringify({ error: 'Merchant not found' });
 
-    // OPTION A: If the merchant has an external storefront URL (like our mock-storefront),
-    // route the checkout intent directly to THEIR server so they can verify price and sign it!
-    const storefrontUrl = merchant.merchantConfig.storefrontUrl;
-    
-    if (storefrontUrl) {
-      try {
-        console.log(`[Buyer AI] Routing checkout to external storefront: ${storefrontUrl}`);
-        const res = await fetch(storefrontUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-buyer-key': buyerKey },
-          body: JSON.stringify({
-            sku,
-            qty,
-            idempotencyKey: crypto.randomUUID(),
-            maxAuthorizedAmount: 100000
-          })
-        });
-        const data = await res.json();
-        return JSON.stringify(data);
-      } catch (err) {
-        return JSON.stringify({ error: `External Storefront Error: ${err.message}` });
-      }
-    }
-
-    // LEGACY FALLBACK: If they don't have a storefront URL, the Gateway signs it on their behalf (Internal checkout)
+    // LEGACY FALLBACK: Internal checkout signing
     const payload = {
       merchantKey: merchant.merchantConfig.merchantKey,
       buyerKey: buyerKey,
-      sku: sku,
-      qty: qty,
-      lineTotal: product.price * qty,
+      sku: finalSkusArray.join(','), // Send combined SKUs
+      qty: finalQty,
+      lineTotal: finalAmount || (product.price * finalQty),
       idempotencyKey: crypto.randomUUID(),
       maxAuthorizedAmount: 100000 // Increased so backend evaluates the actual user budget limits
     };
@@ -231,10 +226,10 @@ export class AiService {
       },
       {
           name: "autocart_checkout",
-          description: "Executes a secure checkout through the Auto-Cart Trust Engine. Use this when the user says to buy a specific SKU.",
+          description: "Executes a secure checkout through the Auto-Cart Trust Engine. Use this when the user says to buy a specific SKU, or if they accepted a bundle deal.",
           schema: z.object({
-              sku: z.string().describe("The SKU to purchase"),
-              qty: z.number().describe("Quantity"),
+              skus: z.array(z.string()).describe("Array of SKUs to purchase (e.g., ['acme-black-tee'] or ['acme-black-tee', 'acme-socks'])"),
+              finalAmount: z.number().describe("The final total amount to charge (base price, or bundled price if upsell accepted)"),
               merchantId: z.string().describe("The merchant ID from the catalog search")
           })
       }
@@ -247,9 +242,16 @@ export class AiService {
 
     const messages = [
         new SystemMessage(`You are the Auto-Cart AI shopping assistant. 
-        You can search the global product catalog using search_catalog.
+        You MUST search the global product catalog using search_catalog BEFORE trying to check out. NEVER guess a SKU.
         When displaying a product, ALWAYS mention the Merchant's name (merchantName) so the user knows who they are buying from.
-        If the user wants to buy something, find the SKU and Merchant ID, then use autocart_checkout to buy it.
+        
+        When you search for a product and receive a 'merchant_offer' in the JSON response, YOU MUST PAUSE AND DO NOT EXECUTE THE CHECKOUT YET.
+        1. Relay the offer to the user clearly. Example: "I found your T-shirt for ₹999. The merchant is offering an exclusive deal: add Crew Socks for just ₹250. Do you want the bundle for ₹1249 total, or just the shirt for ₹999?"
+        2. Wait for the user's reply.
+        3. If the user says YES to the bundle: Call the autocart_checkout tool using an array of BOTH skus in the 'skus' field, and the COMBINED total in 'finalAmount'.
+        4. If the user says NO (just the base item): Call the autocart_checkout tool using ONLY the original sku in the 'skus' field, and the ORIGINAL price in 'finalAmount'.
+
+        If the user wants to buy something normally, ALWAYS search_catalog first to find the exact SKU and Merchant ID, then use autocart_checkout to buy it. DO NOT guess the SKU.
         IMPORTANT: If a checkout returns GATED_1_CLICK, GATED_2FA, or ORDER_CREATED, you MUST include this exact string in your response: [APPROVAL_REQUIRED:auditId] (replace auditId with the actual auditId returned by the tool). Explain gracefully that the transaction exceeded autonomous limits or required manual payment approval.`),
         ...history.map(m => {
             if (m.role === 'user') return new HumanMessage(m.content);

@@ -285,6 +285,8 @@ export const updateMerchantConfig = async (req, res, next) => {
     if (storefrontUrl !== undefined) user.merchantConfig.storefrontUrl = storefrontUrl;
     if (linkedAccountId !== undefined) user.merchantConfig.linkedAccountId = linkedAccountId;
     if (firewallRules !== undefined) user.merchantConfig.firewallRules = firewallRules;
+    
+    user.markModified('merchantConfig');
     await user.save();
     res.json({ success: true, config: user.merchantConfig });
   } catch (err) {
