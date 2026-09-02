@@ -6,6 +6,7 @@ import * as z from "zod";
 import crypto from "crypto";
 import { Product } from "../models/Product.js";
 import { User } from "../models/User.js";
+import { redisClient } from "./redisClient.js";
 
 const mistralModel = new ChatMistralAI({
     model: "mistral-small-latest",
@@ -45,8 +46,13 @@ const searchCatalogTool = tool(
                         upsell_name: "Acme Crew Socks",
                         original_price: 399,
                         discounted_price: 250,
-                        pitch: "Because you are buying the shirt, the merchant is offering an exclusive bundle: add Crew Socks for just ₹250 (normally ₹399)."
+                        pitch: "Because you are buying the shirt, the merchant is offering an exclusive bundle: add Crew Socks for just ₹250 (normally ₹399). Tell the user I have temporarily reserved this inventory for them for exactly 5 minutes."
                     };
+                    
+                    // Set a 5-minute (300 seconds) reservation lock in Redis
+                    // Assuming buyerKey is passed in or we use a generic string for demo
+                    const reservationKey = `reserve:${p.sku}:buyer_session`;
+                    await redisClient.setEx(reservationKey, 300, "LOCKED");
                 }
 
                 enrichedResults.push({
@@ -186,8 +192,22 @@ export class AiService {
     const finalQty = qty || 1;
     const finalSkusArray = skus || [primarySku];
     
+    // REDIS LOCK VERIFICATION
+    const reservationKey = `reserve:${primarySku}:buyer_session`;
+    const hasLock = await redisClient.get(reservationKey);
+    
     const product = await Product.findOne({ sku: primarySku });
     if (!product) return JSON.stringify({ error: `Product not found for SKU: ${primarySku}` });
+    
+    if (!hasLock) {
+        // If the lock expired, verify it didn't sell out!
+        if (product.stock <= 0) {
+            return JSON.stringify({ error: "Your 5-minute reservation expired and the item is now SOLD OUT." });
+        }
+    } else {
+        // We have the lock! Delete it so it can't be double-spent.
+        await redisClient.del(reservationKey);
+    }
     
     const merchant = await User.findOne({ userId: merchantId, role: 'MERCHANT' });
     if (!merchant) return JSON.stringify({ error: 'Merchant not found' });
@@ -251,8 +271,17 @@ export class AiService {
         3. If the user says YES to the bundle: Call the autocart_checkout tool using an array of BOTH skus in the 'skus' field, and the COMBINED total in 'finalAmount'.
         4. If the user says NO (just the base item): Call the autocart_checkout tool using ONLY the original sku in the 'skus' field, and the ORIGINAL price in 'finalAmount'.
 
-        If the user wants to buy something normally, ALWAYS search_catalog first to find the exact SKU and Merchant ID, then use autocart_checkout to buy it. DO NOT guess the SKU.
-        IMPORTANT: If a checkout returns GATED_1_CLICK, GATED_2FA, or ORDER_CREATED, you MUST include this exact string in your response: [APPROVAL_REQUIRED:auditId] (replace auditId with the actual auditId returned by the tool). Explain gracefully that the transaction exceeded autonomous limits or required manual payment approval.`),
+        CRITICAL RULES FOR CHECKOUT:
+        If the user says "I want to buy [product]" or clicks a Buy button, YOU MUST NOT ASK FOR CONFIRMATION. You must IMMEDIATELY execute search_catalog (to get the SKU) and then immediately execute autocart_checkout in the same turn. DO NOT pause to ask "Are you sure?" or "Do you want to proceed?".
+        
+        CRITICAL UI & FORMATTING RULES:
+        1. NEVER act like a robot dumping JSON logs. Do not repeat raw tool outputs.
+        2. Speak like a friendly human assistant. 
+        3. DO NOT output products using markdown text. When you display a product or offer, you MUST output this exact tag format on a new line (and the frontend will convert it into a beautiful React UI card):
+           [PRODUCT_CARD:{"name":"[Product Name]", "price":[Price], "merchant":"[Merchant]", "stock":[Stock], "offer":"[If there is a merchant_offer pitch, put it here, otherwise leave empty]"}]
+        4. If a checkout is successfully AUTO_APPROVED, just say: "Done! Your order has been placed successfully."
+        5. If a checkout returns GATED_1_CLICK or GATED_2FA, include this exact string: [APPROVAL_REQUIRED:auditId] (replace auditId).
+        6. Do not draw attention to the [APPROVAL_REQUIRED] string in your text. Just say: "This transaction exceeds our autonomous budget limits and requires your manual approval below."`),
         ...history.map(m => {
             if (m.role === 'user') return new HumanMessage(m.content);
             if (m.role === 'ai') return new AIMessage(m.content);

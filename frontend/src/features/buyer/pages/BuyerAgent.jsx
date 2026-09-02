@@ -67,24 +67,40 @@ export default function BuyerAgent() {
     setQuery('');
   };
 
-  const parseInlineApproval = (text) => {
-    // Make regex resilient to spaces and case
-    const match = text.match(/\[APPROVAL_REQUIRED:\s*(aud_[a-zA-Z0-9-]+)\s*\]/i);
-    if (match) {
-      return {
-        cleanText: text.replace(match[0], '').trim(),
-        auditId: match[1]
-      };
+  const parseAIResponse = (text) => {
+    let cleanText = text;
+    let auditId = null;
+    let products = [];
+    
+    // Parse Approval
+    const match = cleanText.match(/\[APPROVAL_REQUIRED:\s*(aud_[a-zA-Z0-9-]+)\s*\]/i);
+    const matchBold = cleanText.match(/\*\*\[APPROVAL_REQUIRED:\s*(aud_[a-zA-Z0-9-]+)\s*\]\*\*/i);
+    const finalMatch = match || matchBold;
+    
+    if (finalMatch) {
+      auditId = finalMatch[1];
+      cleanText = cleanText.replace(finalMatch[0], '').trim();
     }
-    // Also check for bold markdown around it e.g. **[APPROVAL_REQUIRED:aud_123]**
-    const matchBold = text.match(/\*\*\[APPROVAL_REQUIRED:\s*(aud_[a-zA-Z0-9-]+)\s*\]\*\*/i);
-    if (matchBold) {
-      return {
-        cleanText: text.replace(matchBold[0], '').trim(),
-        auditId: matchBold[1]
-      };
+
+    // Parse Product Cards
+    const productMatches = [...cleanText.matchAll(/\[PRODUCT_CARD:(.+?)\]/g)];
+    for (const pMatch of productMatches) {
+        try {
+            const pData = JSON.parse(pMatch[1]);
+            products.push(pData);
+        } catch(e){}
+        cleanText = cleanText.replace(pMatch[0], '');
     }
-    return { cleanText: text, auditId: null };
+
+    return { cleanText: cleanText.trim(), auditId, products };
+  };
+
+  const handleDirectBuy = (productName, wantBundle) => {
+    const msg = wantBundle ? `Buy the ${productName} WITH the bundle offer immediately.` : `Buy the ${productName} immediately.`;
+    if (socketRef.current) {
+      socketRef.current.emit('send_message', { userId: user.userId, chatId: activeChatId, message: msg });
+      setMessages(prev => [...prev, { role: 'user', content: msg }]);
+    }
   };
 
   const handleInlineApprove = async (auditId) => {
@@ -156,7 +172,7 @@ export default function BuyerAgent() {
               {/* Chat Messages */}
               <div className="flex-1 overflow-y-auto p-4 md:p-8 flex flex-col gap-6 scroll-smooth">
                 {messages.map((m, i) => {
-                  const { cleanText, auditId } = m.role === 'ai' ? parseInlineApproval(m.content) : { cleanText: m.content, auditId: null };
+                  const { cleanText, auditId, products } = m.role === 'ai' ? parseAIResponse(m.content) : { cleanText: m.content, auditId: null, products: [] };
                   
                   return (
                   <div key={i} className={`flex w-full max-w-4xl mx-auto ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -180,6 +196,46 @@ export default function BuyerAgent() {
                               {cleanText}
                             </ReactMarkdown>
                           </div>
+                          
+                          {/* Generative UI: Product Cards */}
+                          {products && products.length > 0 && (
+                            <div className="flex overflow-x-auto gap-4 mt-5 pb-4 snap-x snap-mandatory [&::-webkit-scrollbar]:hidden">
+                              {products.map((p, idx) => (
+                                <div key={idx} className="min-w-[260px] max-w-[280px] shrink-0 snap-start bg-white/5 border border-white/10 rounded-xl p-4 shadow-lg hover:bg-white/10 transition-colors">
+                                  <h4 className="text-white font-bold text-lg leading-tight">{p.name}</h4>
+                                  <p className="text-slate-400 text-sm mt-1">Sold by: {p.merchant}</p>
+                                  <div className="mt-3 text-xl font-bold text-white">₹{p.price}</div>
+                                  <p className="text-xs text-slate-500 mt-1">{p.stock} available in stock</p>
+                                  
+                                  {p.offer && (
+                                    <div className="mt-4 p-3 rounded-lg border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 text-sm">
+                                      <span className="font-bold block mb-1">🎁 Exclusive Offer:</span> 
+                                      {p.offer}
+                                    </div>
+                                  )}
+                                  
+                                  <div className="mt-5 flex gap-2">
+                                    <button 
+                                      onClick={() => handleDirectBuy(p.name, false)} 
+                                      className={`flex-1 font-semibold py-2 rounded-lg text-sm transition-colors ${p.offer ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-white text-black hover:bg-slate-200'}`}
+                                    >
+                                      Buy Now
+                                    </button>
+                                    
+                                    {p.offer && (
+                                      <button 
+                                        onClick={() => handleDirectBuy(p.name, true)} 
+                                        className="flex-1 bg-indigo-500 text-white font-semibold py-2 rounded-lg text-sm hover:bg-indigo-600 transition-colors shadow-lg shadow-indigo-500/20"
+                                      >
+                                        Buy Bundle
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
                           {auditId && (
                             <div className="mt-5 p-4 rounded-xl border border-amber-500/20 bg-amber-500/5 flex flex-col gap-3 shadow-inner">
                               <div className="flex items-center justify-between">

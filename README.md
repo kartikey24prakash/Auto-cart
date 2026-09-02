@@ -1,208 +1,158 @@
-<div align="center">
-  <h1>🛒 AutoCart Network</h1>
-  <h3>The Zero-Trust B2B Payment Gateway for AI Agents</h3>
+# AutoCart: Autonomous Agentic Commerce Protocol
 
-  <p align="center">
-    <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" />
-    <img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" />
-    <img src="https://img.shields.io/badge/MongoDB-4EA94B?style=for-the-badge&logo=mongodb&logoColor=white" />
-    <img src="https://img.shields.io/badge/Razorpay-02042B?style=for-the-badge&logo=razorpay&logoColor=3395FF" />
-    <img src="https://img.shields.io/badge/Twilio-F22F46?style=for-the-badge&logo=twilio&logoColor=white" />
-    <img src="https://img.shields.io/badge/LangChain-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white" />
-  </p>
-</div>
+**Razorpay AI Buildathon — Track 1: AI Growth & Agentic Commerce**
+
+AutoCart is a headless, B2B2C agentic commerce protocol designed to facilitate secure, zero-intervention transactions between buyer-side LLM agents and merchant-side AI systems. By bridging semantic product negotiation with a cryptographic Trust Engine, AutoCart enables autonomous AI agents to negotiate dynamic product bundles and settle payments programmatically, eliminating traditional UI friction entirely.
 
 ---
 
+## The Problem Statement
+As Large Language Models (LLMs) evolve into autonomous agents, they are entirely blocked by the current e-commerce architecture. Traditional commerce requires visual interaction (UIs, captchas, OTPs, shopping carts). Furthermore, granting an AI unrestricted access to corporate credit cards presents an unacceptable financial risk. There is currently no standardized protocol for an AI to negotiate, authorize, and securely settle a transaction without human intervention.
 
-
-## 🤖 What does it do? (The "Explain it to me like I'm 5" version)
-
-Imagine you tell your AI Assistant: *"Our company is running out of cloud storage. Find the best deal and buy 500GB."*
-
-Normally, the AI can't do this. It can't click through visual checkout screens, solve CAPTCHAs, or receive an SMS OTP to approve a credit card charge. **AutoCart fixes this.** 
-
-AutoCart is a headless network where **AI agents can autonomously search for products and purchase them for you**, while remaining securely trapped inside a cryptographic budget firewall so they can never spend more money than you authorize.
+## The Solution
+AutoCart solves the "Global Protocol Race" by acting as the definitive **Trust Engine** and API layer sitting between the Buyer AI and the Merchant Server. It provides the cryptographic rails necessary for machines to spend money safely, efficiently, and autonomously.
 
 ---
 
-## 🎯 The Problem
-By 2026, AI Agents will handle the majority of B2B procurement. However, the current financial internet is built for humans. 
+## Architectural Pillars
 
-Furthermore, **trust is fundamentally broken** in agent-to-agent commerce:
-1. **For the Buyer:** How do you prevent your AI from hallucinating and spending $10,000 on a product? How does the AI know the merchant isn't a scammer?
-2. **For the Merchant:** How do you accept automated API payments without humans, while verifying the AI actually has the authority to spend the company's money?
+### 1. Agent-to-Agent (A2A) Semantic Negotiation
+Traditional cross-selling relies on static recommendation algorithms. AutoCart introduces a dynamic, agent-driven negotiation layer:
+* **Contextual Injection:** Merchant-side systems dynamically evaluate catalog queries and inject contextual, dynamically priced cross-sell proposals directly into the JSON response.
+* **Agentic Relay & Composition:** The buyer-side LLM evaluates the merchant's proposal, translates the offer into natural language for the end-user, and upon approval, mathematically composes a multi-SKU payload for checkout execution.
 
----
+### 2. Zero-Intervention Tokenized Settlement
+AutoCart entirely bypasses traditional web-based checkout funnels to enable true autonomous procurement:
+* **Token Vaulting:** Securely stores and manages Razorpay Network Tokens against verified user profiles.
+* **Headless Execution:** When a Buyer AI authorizes a standard or bundled transaction, the backend Trust Engine validates the payload and instantly triggers a server-to-server Razorpay Token Charge, settling the transaction in milliseconds.
 
-## 💡 How does this Benefit Merchants?
-Merchants who integrate AutoCart unlock a massive new revenue stream that is currently impossible to capture on traditional e-commerce platforms. 
-- **Zero-Friction Sales:** AI buyers don't abandon their shopping carts, get distracted, or need marketing funnels. If your product matches their requirements, they execute the JSON payload and buy it instantly.
-- **New Revenue Channels:** By exposing an "Agent-Readable Catalog," you tap into a global network of corporate AI assistants doing automated B2B procurement.
-- **Guaranteed Settlement:** Through Razorpay Tokenization and AutoCart's Trust Engine, merchants are guaranteed that the AI buyer has pre-authorized the funds *before* the API payload hits their server. 
-
----
-
-## 🤖↔️🤖 How AI-to-AI Commerce is Enabled
-
-AutoCart solves the "Global Protocol Race" by acting as the **Trust Engine** sitting perfectly between the Buyer AI and the Merchant Server.
-
-1. **The Merchant Side:** A merchant configures their catalog and Razorpay Linked Account on the AutoCart Dashboard. Our system acts as an "Agent-Readable Catalog" that synchronizes their products globally.
-2. **The Buyer Side:** A corporate Buyer AI (using LangChain) queries the global catalog via our API. It finds the best product and sends a cryptographic `buy` payload.
-3. **The Trust Engine:** Before the transaction reaches the merchant, the AutoCart Trust Engine intercepts the payload. It checks the buyer's `dailyBudgetLimit`, verifies the merchant's KYC status, and cryptographically signs the transaction via HMAC-SHA256. If everything passes, the AI-to-AI transaction executes in milliseconds.
+### 3. Dual-Sided Policy Firewall (Trust Engine)
+To mitigate the inherent risks of autonomous capital allocation, AutoCart routes all transactions through a strict, policy-driven Trust Engine:
+* **Merchant Governance (`autoApproveUnder`):** Merchants define maximum thresholds for autonomous auto-billing to prevent inventory exploitation.
+* **Buyer Governance (`dailyBudgetLimit`):** Buyers define absolute maximum daily spend constraints.
+* **Out-of-Band (OOB) Fallback:** Transactions that exceed either threshold are gracefully halted and downgraded to a `GATED_1_CLICK` state. The system then dispatches a cryptographic magic link via Twilio SMS/WhatsApp to a human supervisor for manual override.
 
 ---
 
-## 🚀 The Solution: A Dual-Sided SDK Protocol
+## Integration SDKs (Developer Experience)
 
-AutoCart provides tools for both sides of the marketplace:
+AutoCart provides tools for both sides of the marketplace, making agentic integration seamless.
 
-### 1. For AI Developers (The Buyer Side)
-If you are building an AI agent (using LangChain or OpenAI), you can use our `autocart-ai-tools` package. It gives your AI the superpower to query our global catalog and execute secure API purchases.
+### For AI Developers (The Buyer Side)
+Inject our pre-built LangChain tools directly into your agent to grant it purchasing superpowers.
 
-**How to use it:**
 ```javascript
 import { createReactAgent } from "@langchain/langgraph";
-import { AutoCartSearchTool, AutoCartBuyerTool } from "autocart-ai-tools";
+import { AutoCartSearchTool, AutoCartCheckoutTool } from "autocart-ai-tools";
 
-// 1. Initialize the AutoCart Tools
+// 1. Initialize the AutoCart Protocol Tools
 const searchTool = new AutoCartSearchTool();
-const buyTool = new AutoCartBuyerTool({ buyerKey: 'buyer_secret_key' });
+const checkoutTool = new AutoCartCheckoutTool({ buyerKey: process.env.BUYER_SECRET_KEY });
 
-// 2. Inject the tools directly into your AI Model
+// 2. Inject the tools into your LLM logic
 const agent = createReactAgent({
   llm: mistralModel,
-  tools: [searchTool, buyTool] 
+  tools: [searchTool, checkoutTool] 
 });
 
-// 3. Just ask the AI to do the work!
-await agent.invoke({ messages: [{ role: "user", content: "Buy 10 enterprise licenses from Microsoft." }]});
-// The AI will automatically search the catalog, find the Merchant webhook URL, and execute the purchase securely.
+// 3. Autonomous Execution
+await agent.invoke({ messages: [{ role: "user", content: "Procure the Snitch Black Oversized T-Shirt." }]});
 ```
 
-### 2. For Merchants (The Seller Side)
-If you want to sell products to AI agents, you can't rely on a visual shopping cart. You need to accept automated JSON payloads. By dropping `autocart-sdk` into your Node.js server, you instantly get a secure "AI Checkout Endpoint".
+### For Merchants (The Seller Side)
+Drop the `autocart-sdk` into your Node.js backend to instantly open your inventory to AI buyers.
 
-**How to use it:**
 ```javascript
 import express from 'express';
 import { AutoCartGateway } from 'autocart-sdk';
 
 const app = express();
 
-// 1. Initialize the SDK with your Merchant Credentials
+// 1. Initialize the SDK with Razorpay & AutoCart Credentials
 const gateway = new AutoCartGateway({
-  merchantKey: 'your_merchant_key',
-  merchantSecret: 'your_merchant_secret'
+  merchantKey: process.env.MERCHANT_KEY,
+  merchantSecret: process.env.MERCHANT_SECRET
 });
 
-// 2. The SDK automatically sets up secure POST routes on /autocart
-// It validates HMAC-SHA256 signatures, ensuring the AI is authorized to spend the money!
-app.use('/autocart', gateway.createRouter());
-
-app.listen(3000, () => console.log('Merchant Server ready to receive AI orders!'));
+// 2. Expose the secure AI Checkout Endpoint
+// Automatically validates HMAC-SHA256 signatures to ensure the AI is authorized.
+app.use('/api/agentic-checkout', gateway.createRouter());
 ```
 
 ---
 
-## 🛡️ Zero-Trust Security & KYC Features
+## Transaction Lifecycle & System Architecture
 
-- 🔐 **Dual-Policy Firewall:** Merchants set `autoApproveUnder` limits. Buyers set `dailyBudgetLimit`. The strictest constraint always wins.
-- 📱 **Out-of-Band (OOB) Approvals:** If an AI attempts to exceed the budget, the transaction is safely blocked (`GATED_1_CLICK`). The human supervisor instantly receives a **Twilio WhatsApp message** with a magic approval link to manually override the AI.
-- 🏢 **DNS Domain Verification:** Merchant Webhook endpoints are cryptographically verified via native DNS TXT record lookups to prevent domain spoofing and Man-in-the-Middle attacks.
-- 🏦 **Razorpay Route (KYC):** Scammers are automatically hidden from the AI Catalog. Only businesses that pass real-world KYC via Razorpay Linked Accounts are visible to AI buyers. Payments are instantly split (98% to Merchant, 2% Platform Fee).
+```mermaid
+sequenceDiagram
+    autonumber
+    
+    actor H as Human Supervisor
+    participant A as Buyer AI Agent
+    participant M as Merchant AI / Catalog
+    participant G as AutoCart Trust Engine
+    participant R as Razorpay Gateway
 
----
-
-## 🏗️ System Architecture
-
-```text
- ┌─────────────────┐             ┌──────────────────┐             ┌─────────────────┐
- │                 │   Search &  │                  │   Sync      │                 │
- │   Buyer's AI    │ ◄─────────► │ AutoCart Gateway │ ◄─────────► │ Merchant Server │
- │  (LangChain)    │     Buy     │   (Trust Engine) │   Catalog   │  (AutoCart SDK) │
- │                 │             │                  │             │                 │
- └───────┬─────────┘             └────────┬─────────┘             └────────┬────────┘
-         │                                │                                │
-         ▼                                ▼                                ▼
- ┌─────────────────┐             ┌──────────────────┐             ┌─────────────────┐
- │ Twilio (OOB)    │             │   MongoDB Atlas  │             │ Razorpay Route  │
- │ WhatsApp Auth   │             │  Audit & Config  │             │ KYC & Splits    │
- └─────────────────┘             └──────────────────┘             └─────────────────┘
+    Note over H,M: Phase 1: Semantic Negotiation
+    H->>A: Natural Language Intent (e.g., "Procure Item A")
+    A->>M: Query Catalog API
+    M-->>A: Return Item A + Dynamic Upsell Proposal (Item B)
+    A->>H: Request Authorization for Bundled Proposal
+    H->>A: Approve Bundle Authorization
+    
+    Note over A,G: Phase 2: Policy Evaluation (Firewall)
+    A->>G: Execute Payload { finalAmount, skus: [A, B] }
+    G->>G: Enforce Budget Limits & Merchant Thresholds
+    
+    alt Thresholds Satisfied
+        Note over G,R: Phase 3: Headless Settlement
+        G->>R: Execute Server-to-Server Token Charge
+        R-->>G: Webhook: Payment Success
+        G-->>A: Transaction Settled. Cryptographic Receipt Generated.
+    else Threshold Exceeded
+        G-->>A: Halts Execution. Triggers OOB Human Approval Protocol.
+    end
 ```
 
 ---
 
-## 🛠️ How to run locally
+## Infrastructure Resilience & Incident Report
+Prior to deployment, the zero-click tokenization pipeline experienced a complex cascading failure spanning frontend state synchronization, nested-schema validation within the Mongoose ODM, and a deprecated Razorpay API payload structure.
 
-### 1. Environment Variables
-Clone the repository and configure your `.env` variables based on `.env.example`. You will need keys for MongoDB, Razorpay, Mistral AI, and Twilio.
+Resolution required deploying the **Razorpay Model Context Protocol (MCP)** to dynamically audit our API usage against current Razorpay schema definitions, allowing us to reconstruct the payload architecture and restore pipeline integrity without breaking existing database schemas. 
 
-### 2. Start the AutoCart Central Gateway (Backend)
+A comprehensive technical breakdown of this incident is documented in the [Post-Mortem Report](./POSTMORTEM.md).
+
+---
+
+## Technology Stack
+* **AI & Orchestration:** Mistral AI (`mistral-small-latest`), LangChain, LangGraph
+* **Backend Core:** Node.js, Express.js
+* **Database & ODM:** MongoDB Atlas, Mongoose
+* **Payments & Vaulting:** Razorpay Tokenization API, Razorpay Orders API
+* **Out-of-Band Approvals:** Twilio Programmable Messaging
+* **Frontend Interface:** React.js, Vite, Tailwind CSS
+
+---
+
+## Deployment & Local Setup
+
+### 1. Environment Configuration
+Clone the repository and duplicate `.env.example` to `.env`. Required infrastructure credentials include MongoDB Atlas, Razorpay (Test Environment), Mistral AI, and Twilio.
+
+### 2. Initialize Central Gateway (Trust Engine)
 ```bash
 cd backend
 npm install
 npm run start
 ```
 
-### 3. Start the Dashboard (Frontend)
+### 3. Initialize Client Interface
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-### 4. Start the Mock Merchant Server (Testing SDK)
-```bash
-cd mock-storefront
-npm install
-node server.js
-```
-
 ---
-*Built with ❤️ for the Razorpay "AI Growth & Agentic Commerce" Hackathon.*
-
-
----
-
-## Detailed Transaction Sequence
-
-This sequence diagram illustrates the complete, end-to-end lifecycle of an autonomous transaction through the Auto-Cart network.
-
-`mermaid
-sequenceDiagram
-    autonumber
-    
-    actor H as Human Supervisor
-    participant A as Buyer AI (LangChain)
-    participant G as AutoCart Trust Gateway
-    participant T as Twilio (WhatsApp)
-    participant M as Merchant Server (SDK)
-    participant R as Razorpay
-
-    Note over A,G: Phase 1: Intent & Negotiation
-    A->>G: Queries Global Catalog (I need 50 licenses)
-    G-->>A: Returns verified products & pricing
-    A->>G: POST /autocart/checkout { amount: 5000 }
-    
-    Note over G,M: Phase 2: The Trust Firewall
-    G->>G: Verify Merchant DNS TXT Records
-    G->>G: Evaluate Budget Constraints
-    
-    alt Under Budget Limit
-        G->>G: Auto-Approve Transaction
-    else Over Autonomous Budget
-        G->>T: Budget Exceeded. Trigger OOB Approval.
-        T->>H: WhatsApp: AI Agent requesting 5000. Approve?
-        H->>G: Clicks Magic Link (Signed JWT)
-    end
-    
-    Note over G,R: Phase 3: Cryptographic Settlement
-    G->>G: Generate HMAC-SHA256 Signature
-    G->>M: Forward Signed Payload to Merchant Webhook
-    M->>M: SDK Validates Gateway Signature
-    M->>R: Initiate Headless Checkout via Razorpay
-    R-->>M: Payment Success Webhook
-    M-->>G: Receipt & Confirmation
-    G-->>A: Purchase Complete. Receipt stored.
-`
+*Developed for the Razorpay AI Buildathon 2026.*

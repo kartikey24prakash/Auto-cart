@@ -244,6 +244,8 @@ export default function DashboardLayout({ children, role = 'buyer' }) {
 
   // Fetch chats for the AI Agent dropdown (Both Buyer and Merchant)
   useEffect(() => {
+    if (!user) return; // Wait until session is loaded
+
     import('@/shared/services/apiClient').then(m => {
       m.default.get('/api/chat').then(res => {
         if (res.data && res.data.chats) {
@@ -267,9 +269,9 @@ export default function DashboardLayout({ children, role = 'buyer' }) {
             })));
           }
         }
-      }).catch(console.error);
+      }).catch(err => console.error("Failed to fetch chats:", err));
     });
-  }, [role]);
+  }, [user, role]);
 
   const groups = role === 'buyer' ? dynamicBuyerGroups : dynamicMerchantGroups;
 
