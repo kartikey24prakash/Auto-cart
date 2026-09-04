@@ -198,20 +198,6 @@ export default function BuyerSettings() {
                 Single purchases over this amount require 1-Click human approval. Purchases under this are auto-billed.
               </p>
             </div>
-            
-            <div className="space-y-2 pt-2">
-              <label className="text-sm font-medium text-foreground">Manager Approval Email</label>
-              <input 
-                type="email" 
-                value={mandate.approvalEmail || ''}
-                onChange={e => setMandate({ ...mandate, approvalEmail: e.target.value })}
-                placeholder="finance@company.com"
-                className="w-full bg-background border border-border/60 rounded-lg p-2.5 shadow-sm text-foreground focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 outline-none transition-all"
-              />
-              <p className="text-xs text-muted-foreground pt-1">
-                When a purchase exceeds the limit above, an approval notification will be sent to this manager.
-              </p>
-            </div>
           </div>
         </Card>
 
