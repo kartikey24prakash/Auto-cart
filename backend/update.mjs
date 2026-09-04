@@ -1,0 +1,1 @@
+import 'dotenv/config'; import { connectDB } from './src/config/db.js'; import { User } from './src/models/User.js'; connectDB().then(async () => { await User.updateMany({ role: 'MERCHANT' }, { "$set": { 'merchantConfig.merchantName': 'Snitch Official' } }); console.log('Updated'); process.exit(0); });

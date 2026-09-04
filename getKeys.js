@@ -1,0 +1,1 @@
+import mongoose from 'mongoose'; import { User } from './backend/src/models/User.js'; mongoose.connect('mongodb://127.0.0.1:27017/autocart_db').then(async () => { const users = await User.find({ role: 'MERCHANT' }); console.log(users.map(u => u.name + ': ' + u.merchantConfig.merchantKey + ' ' + u.merchantConfig.merchantSecret)); process.exit(0); });

@@ -1,4 +1,4 @@
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { ChatOpenAI } from "@langchain/openai";
 import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
 import { tool } from "@langchain/core/tools";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
@@ -8,9 +8,13 @@ import { Product } from "../models/Product.js";
 import { User } from "../models/User.js";
 import { redisClient } from "./redisClient.js";
 
-const aiModel = new ChatGoogleGenerativeAI({
-    model: "gemini-3.6-flash",
-    apiKey: process.env.GEMINI_API_KEY
+const aiModel = new ChatOpenAI({
+    modelName: "qwen/qwen3.8-27b",
+    apiKey: process.env.GROQ_API_KEY,
+    configuration: {
+        baseURL: "https://api.groq.com/openai/v1"
+    },
+    maxTokens: 500
 });
 
 const searchCatalogTool = tool(
