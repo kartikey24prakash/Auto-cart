@@ -18,6 +18,7 @@ const buyerGroups = [
       { id: '/buyer/approvals', title: 'Approval Inbox', icon: ClipboardList },
       { id: '/buyer/receipts', title: 'Privacy Receipts', icon: ShoppingCart },
       { id: '/buyer/settings', title: 'Mandates & Delivery', icon: Settings },
+      { id: '/buyer/keys', title: 'API & SDK Access', icon: Terminal },
     ]
   }
 ];

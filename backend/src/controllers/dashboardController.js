@@ -5,6 +5,7 @@
 
 import { AuditLog } from '../models/AuditLog.js';
 import { User } from '../models/User.js';
+import crypto from 'crypto';
 
 // Helper to scope queries by role
 const getQueryFilter = (req) => {
@@ -319,6 +320,39 @@ export const updateDeliveryStatus = async (req, res, next) => {
     await order.save();
 
     res.json({ success: true, order });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ---------------------------------------------------------
+// BUYER API KEY MANAGEMENT
+// ---------------------------------------------------------
+export const getBuyerKey = async (req, res, next) => {
+  try {
+    if (req.user.role.toUpperCase() !== 'BUYER') return res.status(403).json({ error: 'Only buyers have a buyer key' });
+    
+    const user = await User.findOne({ userId: req.user.userId });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    res.json({ buyerKey: user.buyerConfig?.buyerKey || null });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const regenerateBuyerKey = async (req, res, next) => {
+  try {
+    if (req.user.role.toUpperCase() !== 'BUYER') return res.status(403).json({ error: 'Only buyers can generate keys' });
+    
+    const user = await User.findOne({ userId: req.user.userId });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const newKey = 'buyer_key_' + crypto.randomBytes(16).toString('hex');
+    user.buyerConfig.buyerKey = newKey;
+    await user.save();
+
+    res.json({ success: true, buyerKey: newKey });
   } catch (err) {
     next(err);
   }

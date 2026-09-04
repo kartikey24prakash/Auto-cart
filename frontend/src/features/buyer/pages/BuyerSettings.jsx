@@ -9,15 +9,19 @@ export default function BuyerSettings() {
   const [shipping, setShipping] = useState({ 
     fullName: '', addressLine1: '', city: '', state: '', pincode: '', phone: '' 
   });
+  const [buyerKey, setBuyerKey] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+  const [isGeneratingKey, setIsGeneratingKey] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [mandateRes, shippingRes] = await Promise.all([
+        const [mandateRes, shippingRes, keyRes] = await Promise.all([
           apiClient.get('/api/dashboard/mandate'),
-          apiClient.get('/api/dashboard/shipping')
+          apiClient.get('/api/dashboard/shipping'),
+          apiClient.get('/api/dashboard/keys')
         ]);
         if (mandateRes.data.mandates?.length > 0) {
           setMandate({ 
@@ -36,6 +40,9 @@ export default function BuyerSettings() {
             pincode: profile.postalCode || '',
             phone: profile.phone || ''
           });
+        }
+        if (keyRes.data.buyerKey) {
+          setBuyerKey(keyRes.data.buyerKey);
         }
       } catch (err) {
         console.error(err);
@@ -65,14 +72,35 @@ export default function BuyerSettings() {
     }
   };
 
+  const handleRegenerateKey = async () => {
+    if (!window.confirm('Are you sure? Any AI plugins using your old key will immediately lose access.')) return;
+    setIsGeneratingKey(true);
+    try {
+      const res = await apiClient.post('/api/dashboard/keys/regenerate');
+      setBuyerKey(res.data.buyerKey);
+    } catch (err) {
+      alert('Failed to regenerate API Key');
+    } finally {
+      setIsGeneratingKey(false);
+    }
+  };
+
+  const handleCopyKey = () => {
+    if (!buyerKey) return;
+    navigator.clipboard.writeText(buyerKey);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
   return (
     <DashboardLayout role="buyer">
       <div className="max-w-4xl mx-auto space-y-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Mandates & Delivery</h1>
-          <p className="text-muted-foreground mt-1">Configure your AI agent's purchasing limits and shipping details.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Buyer Settings</h1>
+          <p className="text-muted-foreground mt-1">Configure your AI agent limits, shipping, and API access.</p>
         </div>
 
+        {/* Mandate Card */}
         <Card className="p-8 bg-card border-border/50 shadow-sm">
           <div className="flex items-center gap-3 mb-8">
             <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-500">
@@ -87,8 +115,6 @@ export default function BuyerSettings() {
                 onClick={async () => {
                   try {
                     const res = await apiClient.post('/api/dashboard/payment/link');
-                    const { orderId, customerId, keyId } = res.data;
-                    
                     // Load Razorpay
                     if (!document.getElementById('razorpay-sdk')) {
                       const script = document.createElement('script');
@@ -97,39 +123,29 @@ export default function BuyerSettings() {
                       document.body.appendChild(script);
                       await new Promise(resolve => setTimeout(resolve, 1000));
                     }
-
+                    
                     const options = {
-                      key: keyId,
-                      order_id: orderId,
-                      customer_id: customerId,
-                      name: 'AutoCart',
-                      description: 'Link Corporate Card for Auto-Billing',
-                      handler: async function (response) {
-                        try {
-                          await apiClient.post('/api/webhook/razorpay', {
-                            event: 'payment.authorized',
-                            payload: { payment: { entity: { order_id: orderId, id: response.razorpay_payment_id, customer_id: customerId, token_id: 'tok_real_token_simulated' } } }
-                          }, { headers: { 'x-razorpay-signature': 'test-webhook-bypass' } });
-                          alert('Razorpay Tokenization Successful! Auto-billing is now active.');
-                        } catch (e) {
-                           alert('Saved successfully!');
-                        }
-                      },
-                      prefill: {
-                        name: shipping.fullName || 'AutoCart Bot',
-                        email: mandate.approvalEmail || 'bot@autocart.ai',
-                        contact: shipping.phone || '9999999999'
-                      },
-                      theme: { color: '#2563eb' }
+                      key: res.data.keyId,
+                      order_id: res.data.orderId,
+                      customer_id: res.data.customerId,
+                      name: 'Auto-Cart Auto-Billing',
+                      description: 'Link Card for AI Purchases',
+                      handler: async (response) => {
+                        await apiClient.post('/api/webhook/razorpay', {
+                          event: 'payment.authorized',
+                          payload: { payment: { entity: { order_id: response.razorpay_order_id, id: response.razorpay_payment_id, customer_id: res.data.customerId, token_id: 'tok_test_simulated' } } }
+                        }, { headers: { 'x-razorpay-signature': 'test-webhook-bypass' } });
+                        alert('Card linked successfully!');
+                      }
                     };
                     const rzp = new window.Razorpay(options);
                     rzp.open();
-                  } catch (err) {
-                    console.error(err);
-                    alert('Failed to initialize Razorpay checkout');
+                  } catch (e) {
+                    console.error(e);
+                    alert('Failed to initiate card linking.');
                   }
                 }}
-                className="px-4 py-2 bg-blue-600/10 text-blue-500 font-medium rounded-lg hover:bg-blue-600/20 transition-colors text-sm"
+                className="px-4 py-2 bg-blue-500/10 text-blue-500 font-medium rounded-lg hover:bg-blue-500/20 transition-colors text-sm"
               >
                 Link Corporate Card
               </button>
@@ -193,12 +209,13 @@ export default function BuyerSettings() {
                 className="w-full bg-background border border-border/60 rounded-lg p-2.5 shadow-sm text-foreground focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 outline-none transition-all"
               />
               <p className="text-xs text-muted-foreground pt-1">
-                When a purchase exceeds the limit above, the Magic Link will be sent here.
+                When a purchase exceeds the limit above, an approval notification will be sent to this manager.
               </p>
             </div>
           </div>
         </Card>
 
+        {/* Shipping Card */}
         <Card className="p-8 bg-card border-border/50 shadow-sm">
           <div className="flex items-center gap-3 mb-8">
             <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-500">

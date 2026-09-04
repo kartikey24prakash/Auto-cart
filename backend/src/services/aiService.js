@@ -1,4 +1,4 @@
-import { ChatMistralAI } from "@langchain/mistralai";
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
 import { tool } from "@langchain/core/tools";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
@@ -8,9 +8,9 @@ import { Product } from "../models/Product.js";
 import { User } from "../models/User.js";
 import { redisClient } from "./redisClient.js";
 
-const mistralModel = new ChatMistralAI({
-    model: "mistral-small-latest",
-    apiKey: process.env.MISTRAL_API_KEY
+const aiModel = new ChatGoogleGenerativeAI({
+    model: "gemini-3.6-flash",
+    apiKey: process.env.GEMINI_API_KEY
 });
 
 const searchCatalogTool = tool(
@@ -256,7 +256,7 @@ export class AiService {
     );
 
     const agent = createReactAgent({
-        llm: mistralModel,
+        llm: aiModel,
         tools: [searchCatalogTool, autocartCheckoutTool],
     });
 
@@ -281,7 +281,7 @@ export class AiService {
            [PRODUCT_CARD:{"name":"[Product Name]", "price":[Price], "merchant":"[Merchant]", "stock":[Stock], "offer":"[If there is a merchant_offer pitch, put it here, otherwise leave empty]"}]
         4. If a checkout is successfully AUTO_APPROVED, just say: "Done! Your order has been placed successfully."
         5. If a checkout returns GATED_1_CLICK or GATED_2FA, include this exact string: [APPROVAL_REQUIRED:auditId] (replace auditId).
-        6. Do not draw attention to the [APPROVAL_REQUIRED] string in your text. Just say: "This transaction exceeds our autonomous budget limits and requires your manual approval below."`),
+        6. Do not draw attention to the [APPROVAL_REQUIRED] string in your text. Explicitly state WHAT you tried to buy and for how much. Example: "I attempted to purchase the [Product Name] for ₹[Price], but this transaction exceeds our autonomous budget limits and requires your manual approval below."`),
         ...history.map(m => {
             if (m.role === 'user') return new HumanMessage(m.content);
             if (m.role === 'ai') return new AIMessage(m.content);
@@ -319,7 +319,7 @@ export class AiService {
     );
 
     const agent = createReactAgent({
-        llm: mistralModel,
+        llm: aiModel,
         tools: [boundUploadProduct, boundUpdateInventory, boundViewCatalog, boundAnalyzeSales],
     });
 

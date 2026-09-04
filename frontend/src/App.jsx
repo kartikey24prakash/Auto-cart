@@ -7,6 +7,7 @@ import LandingPage from './features/landing/pages/LandingPage';
 import BuyerCommandCenter from './features/buyer/pages/BuyerCommandCenter';
 import BuyerAgent from './features/buyer/pages/BuyerAgent';
 import BuyerSettings from './features/buyer/pages/BuyerSettings';
+import BuyerKeys from './features/buyer/pages/BuyerKeys';
 
 import AuthPage from './features/auth/pages/AuthPage';
 import ApprovalQueuePage from './features/approval-queue/pages/ApprovalQueuePage';
@@ -50,6 +51,7 @@ function AppRoutes() {
       <Route path="/buyer/approvals" element={<ProtectedRoute allowedRole="buyer"><ApprovalQueuePage /></ProtectedRoute>} />
       <Route path="/buyer/receipts" element={<ProtectedRoute allowedRole="buyer"><AuditTerminalPage /></ProtectedRoute>} />
       <Route path="/buyer/settings" element={<ProtectedRoute allowedRole="buyer"><BuyerSettings /></ProtectedRoute>} />
+      <Route path="/buyer/keys" element={<ProtectedRoute allowedRole="buyer"><BuyerKeys /></ProtectedRoute>} />
 
       {/* Merchant Shield (Protected) */}
       <Route path="/merchant" element={<ProtectedRoute allowedRole="merchant"><MerchantOverview /></ProtectedRoute>} />

@@ -1,61 +1,69 @@
-# @autocart/sdk
+# autocart-sdk
 
-The official Node.js SDK for the AutoCart Agentic Commerce Platform.
+The official Merchant SDK for the **AutoCart AI Shopping Network**. 
 
-This SDK allows you to instantly expose your existing e-commerce inventory to autonomous AI Buyers, while enforcing strict, cryptographic spending policies and risk-tier firewalls to protect your revenue.
+Turn any standard Node.js/Express store into an AI-shoppable storefront in exactly 3 steps. The SDK automatically handles Razorpay checkout intents, cryptographic 3-tier firewall security, and AI agent catalog syncing.
 
 ## Installation
 
 ```bash
-npm install @autocart/sdk
+npm install autocart-sdk
 ```
 
-## Quick Start Integration
+## Quick Start
 
-You do not need to change your database structure to use AutoCart. You simply provide a `fetchCatalog` adapter function that maps your existing database fields to the standard AutoCart format (`sku`, `name`, `price`, `stock`).
+Integrate AutoCart into your existing Express server by simply telling the SDK how to read your database.
 
 ```javascript
 import express from 'express';
-import { AutoCartGateway } from '@autocart/sdk';
+import { AutoCartGateway } from 'autocart-sdk';
+import { Product } from './models/Product.js'; // Your database model
 
 const app = express();
 
-// Initialize the Gateway
+// 1. Initialize the Gateway
 const autocart = new AutoCartGateway({
-  merchantKey: 'YOUR_MERCHANT_KEY',       // Generated in the AutoCart Portal
-  merchantSecret: 'YOUR_MERCHANT_SECRET', // Keep this safe!
+  merchantKey: process.env.AUTOCART_MERCHANT_KEY,
+  merchantSecret: process.env.AUTOCART_MERCHANT_SECRET,
+  nexusUrl: 'http://localhost:5000',
   
-  // The Adapter Function: Translate your DB format to the AutoCart format
-  fetchCatalog: async () => {
-    // 1. Fetch data from your specific database (SQL, MongoDB, Shopify, etc.)
-    const myRawInventory = await myCustomDatabase.getProducts();
-    
-    // 2. Map your custom fields to the strict AutoCart schema
-    return myRawInventory.map(product => ({
-      sku: product.item_id,         // Must be a unique string
-      name: product.product_title,  // String
-      price: product.price_in_inr,  // Number (e.g., 4500)
-      stock: product.inventory_qty, // Number (e.g., 10)
-      
-      // Optional: Add a short description to help the AI make decisions
-      description: product.short_desc 
-    }));
-  }
+  // 2. Tell AutoCart how to read your database
+  fetchCatalog: async () => await Product.find({}),
+  fetchProduct: async (sku) => await Product.findOne({ sku })
 });
 
-// Mount the SDK on your Express server
-app.use('/api/ai-store', autocart.createRouter());
+// 3. Mount the secure AI endpoints
+app.use('/autocart', autocart.createRouter());
 
-app.listen(3000, () => {
-  console.log('AI-Ready Storefront running on port 3000');
+// Start your server and sync to the AI network!
+app.listen(4000, async () => {
+    console.log("Server is running!");
+    
+    // Announce your products to the global AI network
+    const products = await Product.find({});
+    await fetch('http://localhost:5000/api/engine/sync', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-merchant-key': process.env.AUTOCART_MERCHANT_KEY
+      },
+      body: JSON.stringify({ products })
+    });
 });
 ```
 
 ## How It Works
 
-By mounting `autocart.createRouter()`, the SDK automatically generates two endpoints on your server:
+Once mounted, the SDK automatically exposes two secure endpoints to the AutoCart Network:
 
-1. **`GET /api/ai-store/catalog`**: A highly optimized, token-lean JSON endpoint that AI Scout Agents query to compare prices and check stock.
-2. **`POST /api/ai-store/checkout`**: The Policy Firewall interceptor. When an AI attempts a purchase, this endpoint verifies the price against your live DB, cryptographically signs the payload, and pings the AutoCart Trust Engine to ensure the human buyer has approved the budget.
+1. **`GET /autocart/catalog`** - Allows AI Agents to dynamically browse your real-time inventory and stock levels.
+2. **`POST /autocart/checkout`** - A cryptographic firewall that intercepts AI purchase attempts, signs the intent with your `merchantSecret`, and safely processes the payment via the central Trust Engine.
 
-For support, visit [merchants.autocart.com](https://autocart.com).
+## Configuration Options
+
+| Option | Description | Required |
+|--------|-------------|----------|
+| `merchantKey` | Your public AutoCart merchant ID | Yes |
+| `merchantSecret` | Your private cryptographic secret | Yes |
+| `fetchProduct(sku)` | Function returning a single product object containing `{ name, price, stock, sku }` | Yes |
+| `fetchCatalog()` | Function returning an array of all products for catalog syncing | Yes |
