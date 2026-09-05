@@ -1,8 +1,8 @@
+import 'dotenv/config';
 import mongoose from 'mongoose';
 import { Product } from './models/Product.js';
 
-// Use the MongoDB Atlas cluster from your main project, but with a new database 'fake_store_db'
-const MONGO_URI = 'mongodb+srv://bhaiyazi58_db_user:skywLx16tQAznJ9z@mee.yhzlqhu.mongodb.net/fake_store_db';
+const MONGO_URI = process.env.MONGODB_URI || process.env.FAKESTORE_MONGODB_URI || 'mongodb://127.0.0.1:27017/fake_store_db';
 
 const adjectives = ['Premium', 'Wireless', 'Smart', 'Ergonomic', 'Portable', 'Classic', 'Modern', 'Eco-friendly', 'Heavy-Duty', 'Compact', 'Ultralight', 'Advanced', 'Vintage', 'Minimalist', 'Luxury'];
 const nouns = ['Headphones', 'Speaker', 'Monitor', 'Keyboard', 'Mouse', 'Jacket', 'Backpack', 'Watch', 'Desk', 'Chair', 'Water Bottle', 'Tablet', 'Laptop Stand', 'Camera', 'Microphone'];
