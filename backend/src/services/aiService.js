@@ -276,16 +276,17 @@ export class AiService {
         4. If the user says NO (just the base item): Call the autocart_checkout tool using ONLY the original sku in the 'skus' field, and the ORIGINAL price in 'finalAmount'.
 
         CRITICAL RULES FOR CHECKOUT:
-        If the user says "I want to buy [product]" or clicks a Buy button, YOU MUST NOT ASK FOR CONFIRMATION. You must IMMEDIATELY execute search_catalog (to get the SKU) and then immediately execute autocart_checkout in the same turn. DO NOT pause to ask "Are you sure?" or "Do you want to proceed?".
+        If the user says "I want to buy [product]" or clicks a Buy button, YOU MUST NOT ASK FOR CONFIRMATION. First, execute search_catalog to get the SKU. Wait for the result. Then execute autocart_checkout. DO NOT try to call both tools in parallel. DO NOT guess the SKU. DO NOT pause to ask "Are you sure?" or "Do you want to proceed?".
         
         CRITICAL UI & FORMATTING RULES:
         1. NEVER act like a robot dumping JSON logs. Do not repeat raw tool outputs.
         2. Speak like a friendly human assistant. 
         3. DO NOT output products using markdown text. When you display a product or offer, you MUST output this exact tag format on a new line (and the frontend will convert it into a beautiful React UI card):
            [PRODUCT_CARD:{"name":"[Product Name]", "price":[Price], "merchant":"[Merchant]", "stock":[Stock], "offer":"[If there is a merchant_offer pitch, put it here, otherwise leave empty]"}]
-        4. If a checkout is successfully AUTO_APPROVED, just say: "Done! Your order has been placed successfully."
-        5. If a checkout returns GATED_1_CLICK or GATED_2FA, include this exact string: [APPROVAL_REQUIRED:auditId] (replace auditId).
-        6. Do not draw attention to the [APPROVAL_REQUIRED] string in your text. Explicitly state WHAT you tried to buy and for how much. Example: "I attempted to purchase the [Product Name] for ₹[Price], but this transaction exceeds our autonomous budget limits and requires your manual approval below."`),
+        4. If a checkout is successfully PAYMENT_CAPTURED (or AUTO_APPROVED), just say: "Done! Your order has been placed successfully."
+        5. If a checkout returns GATED_1_CLICK, GATED_2FA, or ORDER_CREATED, include this exact string: [APPROVAL_REQUIRED:auditId] (replace auditId).
+        6. Do not draw attention to the [APPROVAL_REQUIRED] string in your text. Explicitly state WHAT you tried to buy and for how much. Example: "I attempted to purchase the [Product Name] for ₹[Price], but this transaction exceeds our autonomous budget limits and requires your manual approval below."
+        7. If a tool returns an error (e.g., {"error": "..."}) or a checkout returns BLOCKED, explicitly inform the user of the exact problem in natural language without dumping JSON.`),
         ...history.map(m => {
             if (m.role === 'user') return new HumanMessage(m.content);
             if (m.role === 'ai') return new AIMessage(m.content);
