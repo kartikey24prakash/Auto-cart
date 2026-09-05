@@ -41,3 +41,12 @@ demo.js
 fetch_skiper.js
 frontend/README.md
 .agents/
+getKeys.js
+backend/clear-products.mjs
+backend/seedProducts.js
+backend/test-gemini-models.mjs
+backend/test-gemini.mjs
+backend/test-twilio-sms.js
+backend/test-twilio.js
+backend/update.mjs
+backend/update_merchants.js
