@@ -66,6 +66,11 @@ export function initSocket(httpServer) {
         }
         
         // 4. Save AI response to DB
+        if (Array.isArray(aiResponseText)) {
+          aiResponseText = aiResponseText.map(part => typeof part === 'string' ? part : part.text || '').join('');
+        } else if (typeof aiResponseText !== 'string') {
+          aiResponseText = String(aiResponseText || '');
+        }
         const aiMessage = await ChatMessage.create({ chat: chatId, role: 'ai', content: aiResponseText });
 
         // Generate title if this is the very first user message
