@@ -138,13 +138,13 @@ A comprehensive technical breakdown of this incident is documented in the [Post-
 ## Deployment & Local Setup
 
 ### 1. Environment Configuration
-Clone the repository and duplicate `.env.example` to `.env`. Required infrastructure credentials include MongoDB Atlas, Razorpay (Test Environment), Mistral AI, and Twilio.
+Clone the repository and duplicate `.env.example` to `.env`. Required infrastructure credentials include MongoDB Atlas, Razorpay (Test Environment), Google Gemini, and Redis.
 
 ### 2. Initialize Central Gateway (Trust Engine)
 ```bash
 cd backend
 npm install
-npm run start
+npm run dev
 ```
 
 ### 3. Initialize Client Interface
@@ -152,6 +152,14 @@ npm run start
 cd frontend
 npm install
 npm run dev
+```
+
+### 4. (Optional) Initialize Demo Merchant Store (`fake_Store`)
+```bash
+cd fake_Store
+npm install
+node seed.js    # Seed sample merchant products
+npm start       # Launches demo merchant on port 4000
 ```
 
 ---
